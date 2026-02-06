@@ -1,0 +1,21 @@
+{
+  "name": "canvas_mcp_app_v2",
+  "version": "1.0.0",
+  "description": "Canvas MCP App",
+  "scripts": {
+    "build": "vite build",
+    "serve": "tsx server.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yanis-Bouchelaghem/canvas-mcp-app-v2.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/Yanis-Bouchelaghem/canvas-mcp-app-v2/issues"
+  },
+  "homepage": "https://github.com/Yanis-Bouchelaghem/canvas-mcp-app-v2#readme"
+}

@@ -1,5 +1,6 @@
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -31,10 +32,17 @@ export function createServer() : McpServer {
         resourceUri,
         { mimeType: RESOURCE_MIME_TYPE },
         async () => {
-            const html = await fs.readFile(path.join(DIST_DIR, "mcp-app.html"), "utf-8");
-            return {
-                contents: [{ uri: resourceUri, mimeType: RESOURCE_MIME_TYPE, text: html }],
-            };
+            try
+            {
+                const html = await fs.readFile(path.join(DIST_DIR, "mcp-app.html"), "utf-8");
+                return {
+                    contents: [{ uri: resourceUri, mimeType: RESOURCE_MIME_TYPE, text: html }],
+                };
+            }
+            catch (error) {
+                console.error("Failed to read UI file:", error);
+                throw new McpError(ErrorCode.InternalError, "UI resource unavailable");
+            }
         }
     )
 

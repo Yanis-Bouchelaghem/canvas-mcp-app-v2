@@ -29,17 +29,23 @@ project/
 ├── tsconfig.json           # React (Vite)
 ├── tsconfig.server.json    # Server (Node.js)
 ├── vite.config.ts          # Single-file bundling
-├── mcp-app.html            # React entry point
 ├── src/
-│   └── mcp-app.tsx         # React UI with useApp hook
+│   ├── components/         # Shared reusable UI components
+│   │   └── *.tsx
+│   ├── [tool-a].tsx        # UI entry for tool-a
+│   └── [tool-b].tsx        # UI entry for tool-b
 ├── tools/                  # Modular tool definitions
 │   ├── index.ts            # Registration with capability check
-│   └── [domain].ts         # Domain-specific tools
+│   ├── [tool-a].ts         # Tool-a logic (↔ src/[tool-a].tsx)
+│   └── [tool-b].ts         # Tool-b logic (↔ src/[tool-b].tsx)
 ├── server.ts               # MCP server setup
 ├── main.ts                 # Express entry (HTTP + stdio)
 └── dist/                   # Built output
-    └── mcp-app.html        # Bundled single-file React app
+    ├── [tool-a].html       # Bundled single-file app
+    └── [tool-b].html       # Bundled single-file app
 ```
+
+Tool UI files in `src/` match their server-side tool files in `tools/` by name. Each UI entry is a separate Vite entry point bundled into its own single HTML file. Shared components in `src/components/` are inlined into each bundle.
 
 ## Quick Start
 
@@ -78,7 +84,7 @@ registerAppResource(server, resourceUri, resourceUri,
 See [references/react-patterns.md](references/react-patterns.md) for complete React setup.
 
 ```tsx
-// src/mcp-app.tsx - Core pattern
+// src/[tool-name].tsx - One UI entry per tool
 import { useApp } from "@modelcontextprotocol/ext-apps/react";
 
 function App() {
@@ -169,7 +175,7 @@ export default defineConfig({
 });
 ```
 
-Build: `cross-env INPUT=mcp-app.html vite build`
+Build each UI entry separately: `cross-env INPUT=src/dashboard.tsx vite build`
 
 ## Testing
 

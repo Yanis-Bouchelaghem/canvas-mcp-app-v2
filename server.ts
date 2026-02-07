@@ -1,4 +1,4 @@
-import { getUiCapability, registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
+import { getUiCapability, registerAppResource, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import fs from "node:fs/promises";
@@ -26,11 +26,28 @@ export function createServer(): McpServer {
     });
     const resourceUri = "ui://canvas-lms/list-courses";
 
+    // Baseline registration — ensures tools/list handler exists before oninitialized
+    const listCoursesTool = server.registerTool("list_courses", {
+        title: "List Courses",
+        description: "List courses.",
+        inputSchema: {},
+    }, async () => {
+        return { content: [{ type: "text", text: "Placeholder" }] };
+    });
+
     server.server.oninitialized = () => {
         const clientCapabilities = server.server.getClientCapabilities();
         const clientSupportsUI = getUiCapability(clientCapabilities)?.mimeTypes?.includes(RESOURCE_MIME_TYPE);
 
-        if (clientSupportsUI) {
+        if (true) {
+            listCoursesTool.update({
+                description: "Display the list of courses in an interactive UI to the user.",
+                _meta: { ui: { resourceUri } },
+                callback: async () => {
+                    return { content: [{type: "text", text: "Overriden."}]};
+                }
+            });
+
             registerAppResource(
                 server,
                 "List courses",
@@ -48,26 +65,8 @@ export function createServer(): McpServer {
                         throw new McpError(ErrorCode.InternalError, "UI resource unavailable.");
                     }
                 }
-            )
-
-            registerAppTool(server, "list_courses", {
-                title: "List Courses",
-                description: "Display the list courses in an interactive UI to the user.",
-                inputSchema: {},
-                _meta: { ui: { resourceUri } }
-            }, async () => {
-                return { content: [{ type: "text", text: "This is the UI-enabled version of the tool." }] };
-            });
+            );
         }
-        else {
-            server.registerTool("list_courses", {
-                title: "List Courses",
-                description: "List courses.",
-                inputSchema: {},
-            }, async () => {
-                return { content: [{ type: "text", text: "This is the text-only version of the tool." }] }
-            })
-        };
     };
 
 

@@ -188,6 +188,17 @@ SERVERS='["http://localhost:3001/mcp"]' npm run start
 # Open http://localhost:8080
 ```
 
+## Research Practice
+
+When implementing patterns or solving problems, **always search inside installed libraries** (`node_modules/`) for real, working examples before relying on memory alone. Libraries often ship example code, tests, and reference implementations that are guaranteed to be correct and up-to-date with the version installed.
+
+For example, `@modelcontextprotocol/sdk` ships full server examples at:
+```
+node_modules/@modelcontextprotocol/sdk/dist/esm/examples/server/
+```
+
+Use glob patterns like `node_modules/<package>/**/examples/**` or grep for specific API usage to find authoritative references. This prevents hallucinated patterns and ensures correctness.
+
 ## Reference Files
 
 | Topic | File |

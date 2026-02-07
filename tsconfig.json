@@ -1,5 +1,6 @@
 {
   // Visit https://aka.ms/tsconfig to read more about this file
+  "include": ["src"], // Only check the src directory.
   "compilerOptions": {
     // File Layout
     // "rootDir": "./src",
@@ -9,7 +10,7 @@
     // See also https://aka.ms/tsconfig/module
     "module": "esnext",
     "target": "esnext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "bundler", // Important so that imports work the vite way for the react files.
     "types": [],
     // For nodejs:
     // "lib": ["esnext"],
@@ -23,7 +24,7 @@
 
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": false,
+    "exactOptionalPropertyTypes": false, // This allows us to set optional properties to undefined, which is what most libraries expect.
 
     // Style Options
     // "noImplicitReturns": true,

@@ -1,18 +1,18 @@
 ---
 name: mcp-app-builder
-description: Build MCP Apps with interactive React UIs that run inside MCP-enabled hosts (Claude Desktop, etc.). Use when creating MCP servers that need visual interfaces, dashboards, or interactive components. Covers architecture (Tool + Resource + resourceUri), React setup with useApp hook, graceful degradation for non-UI clients, modular tool organization, and Vite single-file bundling.
+description: Build MCP Apps with interactive React UIs that run inside MCP-enabled hosts (Claude Desktop, VS Code, etc.). Covers architecture (Tool + Resource + resourceUri), session-based transport, domain-grouped tool organization, React setup with useApp hook, and Vite single-file bundling. No custom abstractions — uses the SDK directly.
 ---
 
 # MCP App Builder
 
-Build MCP Apps: interactive UIs that run inside MCP-enabled hosts like Claude Desktop.
+Build MCP Apps: interactive UIs that run inside MCP-enabled hosts like Claude Desktop and VS Code.
 
 ## Core Architecture
 
 An MCP App combines three parts:
 
 ```
-Host (Claude Desktop)
+Host (Claude Desktop, VS Code)
 ├── AI calls Tool → Server returns result
 ├── Host reads _meta.ui.resourceUri → Fetches Resource
 └── Host renders Resource in sandboxed iframe
@@ -26,136 +26,220 @@ Host (Claude Desktop)
 ```
 project/
 ├── package.json
-├── tsconfig.json           # React (Vite)
-├── tsconfig.server.json    # Server (Node.js)
+├── tsconfig.json           # React/UI (Vite) — module: esnext, moduleResolution: bundler
+├── tsconfig.server.json    # Server (Node.js) — module: nodenext
 ├── vite.config.ts          # Single-file bundling
-├── src/
-│   ├── components/         # Shared reusable UI components
-│   │   └── *.tsx
-│   ├── [tool-a].tsx        # UI entry for tool-a
-│   └── [tool-b].tsx        # UI entry for tool-b
-├── tools/                  # Modular tool definitions
-│   ├── index.ts            # Registration with capability check
-│   ├── [tool-a].ts         # Tool-a logic (↔ src/[tool-a].tsx)
-│   └── [tool-b].ts         # Tool-b logic (↔ src/[tool-b].tsx)
-├── server.ts               # MCP server setup
-├── main.ts                 # Express entry (HTTP + stdio)
-└── dist/                   # Built output
-    ├── [tool-a].html       # Bundled single-file app
-    └── [tool-b].html       # Bundled single-file app
+├── main.ts                 # Express entry — session-based transport
+├── server.ts               # MCP server factory — imports and registers tool domains
+├── tools/                  # Tool domains — grouped by semantic area
+│   ├── [domain-a].ts       # All domain-a tools + resources
+│   └── [domain-b].ts       # All domain-b tools + resources
+├── ui/                     # React UIs — mirrored by domain
+│   ├── [domain-a]/
+│   │   ├── [tool-name].html
+│   │   └── [tool-name].tsx
+│   └── [domain-b]/
+│       ├── [tool-name].html
+│       └── [tool-name].tsx
+└── dist/                   # Built output (mirrors ui/ structure)
+    └── ui/
+        └── [domain-a]/
+            └── [tool-name].html
 ```
 
-Tool UI files in `src/` match their server-side tool files in `tools/` by name. Each UI entry is a separate Vite entry point bundled into its own single HTML file. Shared components in `src/components/` are inlined into each bundle.
+## Design Principles
+
+- **No abstraction over the SDK.** Each tool file uses `registerAppTool` / `registerAppResource` directly. No custom interfaces, no wrappers. A developer who's read the MCP docs can read any tool file immediately.
+- **Domain-grouped tools.** Tools are grouped by semantic area, not one file per tool. Each domain file exports a `register(server)` function.
+- **Session-based transport.** Each client gets a persistent session (via `randomUUID`), enabling future graceful degradation when host capability detection stabilizes.
 
 ## Quick Start
 
 ```bash
 npm install @modelcontextprotocol/ext-apps @modelcontextprotocol/sdk react react-dom express zod cors
-npm install -D typescript vite @vitejs/plugin-react vite-plugin-singlefile @types/react @types/react-dom @types/node @types/express @types/cors cross-env tsx
+npm install -D typescript vite @vitejs/plugin-react vite-plugin-singlefile @types/react @types/react-dom @types/node @types/express @types/cors tsx
 ```
+
+## Package Scripts
+
+```json
+{
+  "scripts": {
+    "build:ui": "rm -rf dist && for f in ui/**/*.html; do INPUT=$f npx vite build; done",
+    "serve": "npx tsx main.ts",
+    "dev": "npm run build:ui && npx tsx --watch main.ts"
+  }
+}
+```
+
+- `build:ui` — Builds all UI entry points into single-file HTML bundles
+- `serve` — Starts the MCP server
+- `dev` — Builds UI, then starts server with watch mode (restarts on `.ts` changes)
 
 ## Implementation
 
-### 1. Tool + Resource Registration
+### 1. Session-Based Transport (main.ts)
 
-See [references/server-patterns.md](references/server-patterns.md) for complete server setup.
+Uses `StreamableHTTPServerTransport` with session tracking. Each client gets a unique session ID. Three route handlers: POST (creates/reuses sessions), GET (SSE streams), DELETE (session termination).
 
 ```typescript
-// server.ts - Core pattern
-const resourceUri = "ui://my-app/dashboard";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { ErrorCode, isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { randomUUID } from "node:crypto";
 
-// Register tool with UI link
-registerAppTool(server, "my_tool", {
-  description: "Tool with interactive UI",
-  _meta: { ui: { resourceUri } },
-}, handler);
+const transports: Record<string, StreamableHTTPServerTransport> = {};
 
-// Register resource serving bundled React
-registerAppResource(server, resourceUri, resourceUri,
-  { mimeType: RESOURCE_MIME_TYPE },
-  async () => ({
-    contents: [{ uri: resourceUri, mimeType: RESOURCE_MIME_TYPE, text: html }]
-  })
-);
+app.post("/mcp", async (request, result) => {
+    const sessionId = request.headers["mcp-session-id"] as string | undefined;
+    if (sessionId && transports[sessionId]) {
+        await transports[sessionId].handleRequest(request, result, request.body);
+        return;
+    }
+
+    if (!isInitializeRequest(request.body)) {
+        result.status(400).json({
+            jsonrpc: "2.0",
+            error: { code: ErrorCode.InvalidRequest, message: "Bad Request: No valid session ID provided" },
+            id: null,
+        });
+        return;
+    }
+
+    const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => randomUUID(),
+        onsessioninitialized: (sessionId) => { transports[sessionId] = transport; },
+    });
+    transport.onclose = () => {
+        const sid = transport.sessionId;
+        if (sid) delete transports[sid];
+    };
+
+    const mcpServer = createServer();
+    await mcpServer.connect(transport);
+    await transport.handleRequest(request, result, request.body);
+});
+
+// GET — SSE stream for server-initiated messages
+app.get("/mcp", async (request, result) => {
+    const sessionId = request.headers["mcp-session-id"] as string | undefined;
+    if (!sessionId || !transports[sessionId]) {
+        result.status(400).send("Invalid or missing session ID");
+        return;
+    }
+    await transports[sessionId].handleRequest(request, result);
+});
+
+// DELETE — session termination
+app.delete("/mcp", async (request, result) => {
+    const sessionId = request.headers["mcp-session-id"] as string | undefined;
+    if (!sessionId || !transports[sessionId]) {
+        result.status(400).send("Invalid or missing session ID");
+        return;
+    }
+    await transports[sessionId].handleRequest(request, result);
+});
 ```
 
-### 2. React UI with useApp Hook
+**Important:** `app.use(express.json())` is required before the routes — without it, `request.body` is undefined and `isInitializeRequest` fails.
 
-See [references/react-patterns.md](references/react-patterns.md) for complete React setup.
+The SDK's own session-based example lives at:
+```
+node_modules/@modelcontextprotocol/sdk/dist/esm/examples/server/simpleStreamableHttp.js
+```
+
+### 2. Server Factory (server.ts)
+
+Thin shell — just creates the server and registers tool domains:
+
+```typescript
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { register as registerDomainA } from "./tools/domain-a.js";
+import { register as registerDomainB } from "./tools/domain-b.js";
+
+export function createServer(): McpServer {
+    const server = new McpServer({ name: "My App", version: "1.0.0" });
+    registerDomainA(server);
+    registerDomainB(server);
+    return server;
+}
+```
+
+### 3. Domain Tool Files (tools/*.ts)
+
+Each domain file is self-contained — registers its own tools and resources using the SDK directly:
+
+```typescript
+// tools/[domain].ts
+import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+const DIST_DIR = import.meta.filename.endsWith(".ts")
+    ? path.join(import.meta.dirname, "../dist/ui/[domain]")
+    : import.meta.dirname;
+
+export function register(server: McpServer) {
+    const resourceUri = "ui://my-app/my-tool";
+
+    registerAppResource(server, "My Tool", resourceUri,
+        { mimeType: RESOURCE_MIME_TYPE },
+        async () => {
+            try {
+                const html = await fs.readFile(path.join(DIST_DIR, "my-tool.html"), "utf-8");
+                return { contents: [{ uri: resourceUri, mimeType: RESOURCE_MIME_TYPE, text: html }] };
+            } catch (error) {
+                console.error("Failed to read UI file:", error);
+                throw new McpError(ErrorCode.InternalError, "UI resource unavailable.");
+            }
+        }
+    );
+
+    registerAppTool(server, "my_tool", {
+        title: "My Tool",
+        description: "Does something useful",
+        inputSchema: {},
+        _meta: { ui: { resourceUri } },
+    }, async () => {
+        return { content: [{ type: "text", text: "..." }] };
+    });
+}
+```
+
+To add a new domain: create `tools/new-domain.ts` with a `register(server)` function, add one import line to `server.ts`.
+
+### 4. React UI with useApp Hook
 
 ```tsx
-// src/[tool-name].tsx - One UI entry per tool
+// ui/[domain]/[tool-name].tsx
 import { useApp } from "@modelcontextprotocol/ext-apps/react";
 
 function App() {
-  const { app, error } = useApp({
-    appInfo: { name: "My App", version: "1.0.0" },
-    capabilities: {},
-    onAppCreated: (app) => {
-      // Register handlers BEFORE connection
-      app.ontoolresult = async (result) => setData(result);
-      app.onhostcontextchanged = (ctx) => setContext(ctx);
-    },
-  });
+    const { app, error } = useApp({
+        appInfo: { name: "My App", version: "1.0.0" },
+        capabilities: {},
+        onAppCreated: (app) => {
+            app.ontoolresult = async (result) => setData(result);
+        },
+    });
 
-  if (error) return <div>Error: {error.message}</div>;
-  if (!app) return <div>Connecting...</div>;
-
-  // Call server tools from UI
-  const refresh = () => app.callServerTool({ name: "my_tool", arguments: {} });
+    if (error) return <div>Error: {error.message}</div>;
+    if (!app) return <div>Connecting...</div>;
+    // render UI...
 }
 ```
 
-### 3. Graceful Degradation
-
-See [references/graceful-degradation.md](references/graceful-degradation.md) for capability checking.
-
-**Problem:** If tool description says "displays a UI", non-UI clients get no useful output.
-
-**Solution:** Check capabilities, register different descriptions:
-
-```typescript
-import { getUiCapability, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
-
-server.server.oninitialized = () => {
-  const caps = server.server.getClientCapabilities();
-  const supportsUI = getUiCapability(caps)?.mimeTypes?.includes(RESOURCE_MIME_TYPE);
-
-  if (supportsUI) {
-    registerAppTool(server, "my_tool", {
-      description: "Shows interactive dashboard",  // UI description
-      _meta: { ui: { resourceUri } },
-    }, handler);
-  } else {
-    server.registerTool("my_tool", {
-      description: "Output the data in clear format",  // Text description
-    }, handler);
-  }
-};
-```
-
-### 4. Modular Tools
-
-Organize tools by domain for maintainability:
-
-```typescript
-// tools/courses.ts
-export const listCoursesTool = {
-  name: "list_courses",
-  descriptionUI: "Lists courses with interactive dashboard",
-  descriptionText: "Lists courses. Output details clearly.",
-  inputSchema: { /* zod schema */ },
-  handler: async (args) => ({ content: [{ type: "text", text: "..." }] }),
-};
-
-// tools/index.ts
-export function registerAllTools(server, resourceUri, supportsUI) {
-  const tools = [listCoursesTool, /* more tools */];
-  tools.forEach(t => supportsUI
-    ? registerAppTool(server, t.name, { description: t.descriptionUI, _meta: { ui: { resourceUri } } }, t.handler)
-    : server.registerTool(t.name, { description: t.descriptionText }, t.handler)
-  );
-}
+Each UI entry has a matching `.html` file that loads it:
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>My App</title></head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="./[tool-name].tsx"></script>
+</body>
+</html>
 ```
 
 ### 5. Vite Single-File Bundling
@@ -167,26 +251,23 @@ import react from "@vitejs/plugin-react";
 import { viteSingleFile } from "vite-plugin-singlefile";
 
 export default defineConfig({
-  plugins: [react(), viteSingleFile()],
-  build: {
-    rollupOptions: { input: process.env.INPUT },
-    outDir: "dist",
-  },
+    plugins: [react(), viteSingleFile()],
+    build: {
+        rollupOptions: { input: process.env.INPUT },
+        outDir: "dist",
+        emptyOutDir: false,  // Important: multiple builds append to dist/
+    },
 });
 ```
 
-Build each UI entry separately: `cross-env INPUT=src/dashboard.tsx vite build`
+## Graceful Degradation (Future)
 
-## Testing
+Session-based transport enables capability checking via `getUiCapability()` in `oninitialized`. This would allow registering different tool descriptions for UI vs text-only clients. **Currently not stable** — hosts like VS Code Insiders support MCP Apps but don't advertise `extensions["io.modelcontextprotocol/ui"]` in their capabilities yet.
 
-```bash
-npm run build && npm run serve  # Server at http://localhost:3001/mcp
-
-# Test with basic-host (if available)
-cd /path/to/ext-apps/examples/basic-host
-SERVERS='["http://localhost:3001/mcp"]' npm run start
-# Open http://localhost:8080
-```
+When it works, the pattern is:
+1. Register baseline tools outside `oninitialized` (to ensure `tools/list` handler exists)
+2. In `oninitialized`, check `getUiCapability(caps)` and `.update()` tools with UI metadata or text-only descriptions
+3. Registered tools have `.update()`, `.remove()`, `.enable()`, `.disable()` methods
 
 ## Research Practice
 

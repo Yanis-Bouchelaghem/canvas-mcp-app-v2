@@ -1,9 +1,9 @@
 import { useApp } from "@modelcontextprotocol/ext-apps/react";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 
-function CanvasApp() {
+function ListCourses() {
   const [toolResult, setToolResult] = useState<CallToolResult | null>(null);
 
   const { app, error } = useApp({
@@ -32,6 +32,6 @@ function CanvasApp() {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <CanvasApp />
+    <ListCourses />
   </StrictMode>,
 );

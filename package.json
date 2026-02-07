@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "Canvas MCP App",
   "scripts": {
-    "build": "vite build",
-    "serve": "tsx server.ts"
+    "build:ui": "rm -rf dist && for f in ui/**/*.html; do INPUT=$f npx vite build; done",
+    "serve": "npx tsx main.ts",
+    "dev": "npm run build:ui && npx tsx --watch main.ts"
   },
   "repository": {
     "type": "git",

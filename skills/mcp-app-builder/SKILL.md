@@ -31,18 +31,21 @@ project/
 ├── vite.config.ts          # Single-file bundling
 ├── main.ts                 # Express entry — session-based transport
 ├── server.ts               # MCP server factory — imports and registers tool domains
-├── tools/                  # Tool domains — grouped by semantic area
-│   ├── [domain-a].ts       # All domain-a tools + resources
-│   └── [domain-b].ts       # All domain-b tools + resources
-├── ui/                     # React UIs — mirrored by domain
-│   ├── [domain-a]/
-│   │   ├── [tool-name].html
-│   │   └── [tool-name].tsx
-│   └── [domain-b]/
-│       ├── [tool-name].html
-│       └── [tool-name].tsx
-└── dist/                   # Built output (mirrors ui/ structure)
-    └── ui/
+├── src/
+│   ├── tools/              # Tool domains — grouped by semantic area
+│   │   ├── [domain-a].ts   # All domain-a tools + resources
+│   │   └── [domain-b].ts   # All domain-b tools + resources
+│   ├── models/             # Zod schemas for API response validation
+│   │   └── [model].ts
+│   └── ui/                 # React UIs — mirrored by domain
+│       ├── [domain-a]/
+│       │   ├── [tool-name].html
+│       │   └── [tool-name].tsx
+│       └── [domain-b]/
+│           ├── [tool-name].html
+│           └── [tool-name].tsx
+└── dist/                   # Built output (mirrors src/ui/ structure)
+    └── src/ui/
         └── [domain-a]/
             └── [tool-name].html
 ```
@@ -65,7 +68,7 @@ npm install -D typescript vite @vitejs/plugin-react vite-plugin-singlefile @type
 ```json
 {
   "scripts": {
-    "build:ui": "rm -rf dist && for f in ui/**/*.html; do INPUT=$f npx vite build; done",
+    "build:ui": "rm -rf dist && for f in src/ui/**/*.html; do INPUT=$f npx vite build; done",
     "serve": "npx tsx main.ts",
     "dev": "npm run build:ui && npx tsx --watch main.ts"
   }
@@ -153,8 +156,8 @@ Thin shell — just creates the server and registers tool domains:
 
 ```typescript
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { register as registerDomainA } from "./tools/domain-a.js";
-import { register as registerDomainB } from "./tools/domain-b.js";
+import { register as registerDomainA } from "./src/tools/domain-a.js";
+import { register as registerDomainB } from "./src/tools/domain-b.js";
 
 export function createServer(): McpServer {
     const server = new McpServer({ name: "My App", version: "1.0.0" });
@@ -169,15 +172,17 @@ export function createServer(): McpServer {
 Each domain file is self-contained — registers its own tools and resources using the SDK directly:
 
 ```typescript
-// tools/[domain].ts
+// src/tools/[domain].ts
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
+import { MyModelSchema } from "../models/my-model.js";
 import fs from "node:fs/promises";
 import path from "node:path";
+import z from "zod";
 
 const DIST_DIR = import.meta.filename.endsWith(".ts")
-    ? path.join(import.meta.dirname, "../dist/ui/[domain]")
+    ? path.join(import.meta.dirname, "../../dist/src/ui/[domain]")
     : import.meta.dirname;
 
 export function register(server: McpServer) {
@@ -201,18 +206,98 @@ export function register(server: McpServer) {
         description: "Does something useful",
         inputSchema: {},
         _meta: { ui: { resourceUri } },
-    }, async () => {
-        return { content: [{ type: "text", text: "..." }] };
+    }, async (args, extra) => {
+        // Read custom headers from the HTTP request (available on every tool call)
+        const token = extra.requestInfo?.headers["authorization"];
+
+        if (!token) {
+            return {
+                content: [{ type: "text", text: "Missing credentials." }],
+                isError: true  // Tool execution error — tells the LLM this call failed
+            };
+        }
+
+        try {
+            const response = await fetch(`https://api.example.com/things`, {
+                headers: { Authorization: String(token) },
+            });
+
+            if (!response.ok) {
+                const body = await response.text();
+                return {
+                    content: [{ type: "text", text: `API error ${response.status}: ${body}` }],
+                    isError: true
+                };
+            }
+
+            // Validate & strip unknown fields with Zod
+            const data = z.array(MyModelSchema).parse(await response.json());
+            return { content: [{ type: "text", text: JSON.stringify(data) }] };
+        } catch (error) {
+            return {
+                content: [{ type: "text", text: `Request failed: ${error instanceof Error ? error.message : String(error)}` }],
+                isError: true
+            };
+        }
     });
 }
 ```
 
-To add a new domain: create `tools/new-domain.ts` with a `register(server)` function, add one import line to `server.ts`.
+To add a new domain: create `src/tools/new-domain.ts` with a `register(server)` function, add one import line to `server.ts`.
+
+### Error Handling
+
+MCP has two error mechanisms:
+
+- **Protocol errors**: JSON-RPC errors for issues like unknown tools, invalid arguments. Use `throw new McpError(...)` for these.
+- **Tool execution errors**: Returned in the tool result with `isError: true`. Use for API failures, invalid input, business logic errors. The LLM sees these and can react (retry, inform user).
+
+Always use `isError: true` for errors that happen during tool execution (API calls, validation, network failures).
+
+### Reading HTTP Headers in Tool Handlers
+
+For remote MCP servers (HTTP transport), the SDK passes HTTP headers through to tool handlers via `extra.requestInfo?.headers` on every request. This is useful for auth tokens, API domains, or any client-provided config. Headers type is `Record<string, string | string[] | undefined>` — use `String(value)` when passing to APIs. Client config:
+
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "url": "https://my-server.com/mcp",
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
+    }
+  }
+}
+```
+
+### Zod Model Validation
+
+Define models in `src/models/` using Zod schemas. Parse API responses to validate data and strip unknown fields:
+
+```typescript
+// src/models/my-model.ts
+import { z } from "zod";
+
+export const MyModelSchema = z.object({
+    id: z.number(),
+    name: z.string(),
+    status: z.enum(["active", "inactive"]),
+    created_at: z.string().nullable(),   // nullable: field is present but value can be null
+    metadata: z.string().optional(),      // optional: field may not be present at all in the response
+});
+
+export type MyModel = z.infer<typeof MyModelSchema>;
+```
+
+- `nullable()` — field is present but value can be `null`
+- `optional()` — field may not be present at all in the response
+- `z.infer<typeof Schema>` — derives a TypeScript type from the schema (single source of truth)
 
 ### 4. React UI with useApp Hook
 
 ```tsx
-// ui/[domain]/[tool-name].tsx
+// src/ui/[domain]/[tool-name].tsx
 import { useApp } from "@modelcontextprotocol/ext-apps/react";
 
 function App() {

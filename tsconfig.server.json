@@ -1,6 +1,6 @@
 {
   // Visit https://aka.ms/tsconfig to read more about this file
-  "include": ["server.ts", "main.ts", "tools/**/*.ts"], // Only check these directories and files.
+  "include": ["server.ts", "main.ts", "src/tools/**/*.ts", "src/models/**/*.ts"], // Only check these directories and files.
   "compilerOptions": {
     // File Layout
     // "rootDir": "./src",

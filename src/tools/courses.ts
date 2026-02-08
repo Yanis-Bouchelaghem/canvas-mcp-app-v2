@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 const DIST_DIR = import.meta.filename.endsWith(".ts")
-    ? path.join(import.meta.dirname, "../dist/ui/courses")
+    ? path.join(import.meta.dirname, "../../dist/ui/courses")
     : import.meta.dirname;
 
 export function register(server: McpServer) {

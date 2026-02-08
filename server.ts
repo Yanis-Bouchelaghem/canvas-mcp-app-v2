@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { register as registerCourseTools } from "./tools/courses.js";
+import { register as registerCourseTools } from "./src/tools/courses.js";
 
 export function createServer(): McpServer {
     const server = new McpServer({

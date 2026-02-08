@@ -1,6 +1,6 @@
 {
   // Visit https://aka.ms/tsconfig to read more about this file
-  "include": ["ui"], // Only check the ui directory.
+  "include": ["src/ui"], // Only check the ui directory.
   "compilerOptions": {
     // File Layout
     // "rootDir": "./src",

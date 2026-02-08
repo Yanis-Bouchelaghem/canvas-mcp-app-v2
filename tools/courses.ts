@@ -35,7 +35,33 @@ export function register(server: McpServer) {
         description: "List courses in Canvas LMS",
         inputSchema: {},
         _meta: { ui: { resourceUri: listCoursesUri } },
-    }, async () => {
-        return { content: [{ type: "text", text: "This is a placeholder for the list courses tool." }] };
+    }, async (args, extra) => {
+        const canvasToken = extra.requestInfo?.headers["authorization"];
+        const canvasDomain = extra.requestInfo?.headers["x-canvas-domain"];
+
+        if(!canvasToken || !canvasDomain) {
+            return {
+                content: [{type: "text", text: "Missing credentials or domain. Ask the user to ensure they have properly configured the MCP with headers 'authorization' and 'x-canvas-domain'."}]
+            }
+        }
+
+        try {
+            const response = await fetch(`${canvasDomain}/api/v1/courses`,
+                { headers : { Authorization: String(canvasToken)},}
+            );
+
+            if (!response.ok){
+                const body = await response.text();
+                return {
+                    content: [{ type: "text", text: `Canvas API error ${response.status}: ${body}`}]
+                }
+            }
+            const courses = await response.json();
+            return { content: [{ type: "text", text: JSON.stringify(courses) }] };
+        } catch (error) {
+            return {
+                content: [{ type: "text", text: `Failed to reach Canvas API at ${canvasDomain}: ${error instanceof Error ? error.message : String(error)}`}]
+            }
+        }
     });
 }

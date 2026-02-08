@@ -342,6 +342,45 @@ function App() {
 }
 ```
 
+#### Host Styles & Theming
+
+MCP App UIs run inside an iframe in the host (VS Code, Claude Desktop, etc.). The host provides its theme and CSS variables to the app. Always use host styles instead of hardcoding colors — this ensures the UI matches the host's look and feel, including dark/light mode.
+
+Apply host styles with `useHostStyles`:
+```tsx
+import { useApp, useHostStyles, useDocumentTheme } from "@modelcontextprotocol/ext-apps/react";
+
+function App() {
+    const { app, error } = useApp({ ... });
+
+    // Applies host CSS variables to the document and listens for theme changes
+    useHostStyles(app, app?.getHostContext());
+
+    // Reactive "light" | "dark" — use for conditional logic if needed
+    const theme = useDocumentTheme();
+}
+```
+
+Use CSS variables with fallbacks in your styles:
+```tsx
+<div style={{
+    fontFamily: "var(--font-sans, system-ui, sans-serif)",
+    color: "var(--color-text-primary, inherit)",
+    background: "var(--color-background-primary)",
+    border: "1px solid var(--color-border-primary, #e5e7eb)",
+    borderRadius: "var(--border-radius-md, 4px)",
+    fontSize: "var(--font-text-sm-size, 0.875rem)",
+}}>
+```
+
+Key CSS variable groups (all optional, always provide fallbacks):
+- **Background**: `--color-background-{primary,secondary,tertiary,danger,success,warning,info}`
+- **Text**: `--color-text-{primary,secondary,tertiary,danger,success,warning,info}`
+- **Border**: `--color-border-{primary,secondary,tertiary,danger,success,warning,info}`
+- **Fonts**: `--font-sans`, `--font-mono`, `--font-weight-{normal,medium,semibold,bold}`
+- **Typography**: `--font-text-{xs,sm,md,lg}-size` / `-line-height`, `--font-heading-{xs,sm,md,lg,xl,2xl,3xl}-size` / `-line-height`
+- **Spacing**: `--border-radius-{xs,sm,md,lg,xl,full}`, `--shadow-{hairline,sm,md,lg}`
+
 Each UI entry has a matching `.html` file that loads it:
 ```html
 <!DOCTYPE html>

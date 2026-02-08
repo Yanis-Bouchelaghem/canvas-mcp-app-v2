@@ -249,10 +249,37 @@ To add a new domain: create `src/tools/new-domain.ts` with a `register(server)` 
 
 MCP has two error mechanisms:
 
-- **Protocol errors**: JSON-RPC errors for issues like unknown tools, invalid arguments. Use `throw new McpError(...)` for these.
-- **Tool execution errors**: Returned in the tool result with `isError: true`. Use for API failures, invalid input, business logic errors. The LLM sees these and can react (retry, inform user).
+#### Tool Errors
+
+Tools use two error reporting mechanisms:
+
+- **Protocol errors**: Standard JSON-RPC errors for issues like unknown tools, invalid arguments, server errors. Use `throw new McpError(ErrorCode.XXX, "message")`.
+  ```typescript
+  import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
+  throw new McpError(ErrorCode.InvalidParams, "Missing required field: name");
+  ```
+- **Tool execution errors**: Reported in tool results with `isError: true`. Use for API failures, invalid input data, business logic errors. The LLM sees these and can react (retry, inform user).
+  ```typescript
+  return {
+      content: [{ type: "text", text: "Failed to fetch data: API rate limit exceeded" }],
+      isError: true
+  };
+  ```
 
 Always use `isError: true` for errors that happen during tool execution (API calls, validation, network failures).
+
+#### Resource Errors
+
+Servers SHOULD return standard JSON-RPC errors for common failure cases:
+
+- Resource not found: `-32002`
+- Internal errors: `-32603`
+
+```typescript
+throw new McpError(ErrorCode.InternalError, "UI resource unavailable.");
+```
+
+Resources don't return tool results — they either return content or throw.
 
 ### Reading HTTP Headers in Tool Handlers
 

@@ -8,13 +8,13 @@ export interface CanvasCredentials {
     domain: string;
 }
 
-/** Extract Canvas credentials from MCP request headers. Throws if missing. */
+/** Extract Canvas credentials from MCP request headers, falling back to env vars. */
 export function extractCredentials(extra: RequestHandlerExtra<ServerRequest, ServerNotification>): CanvasCredentials {
-    const token = extra.requestInfo?.headers["authorization"];
-    const domain = extra.requestInfo?.headers["x-canvas-domain"];
+    const token = extra.requestInfo?.headers["authorization"] ?? process.env["CANVAS_TOKEN"];
+    const domain = extra.requestInfo?.headers["x-canvas-domain"] ?? process.env["CANVAS_DOMAIN"];
 
     if (!token || !domain) {
-        throw new Error("Missing credentials or domain. Ask the user to ensure they have properly configured the MCP with headers 'authorization' and 'x-canvas-domain'.");
+        throw new Error("Missing credentials or domain. Provide headers 'authorization' and 'x-canvas-domain', or set CANVAS_TOKEN and CANVAS_DOMAIN env vars.");
     }
 
     return { token: String(token), domain: String(domain) };

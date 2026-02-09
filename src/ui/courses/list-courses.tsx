@@ -1,4 +1,4 @@
-import { useApp, useHostStyles, useDocumentTheme } from "@modelcontextprotocol/ext-apps/react";
+import { useApp, useHostStyles } from "@modelcontextprotocol/ext-apps/react";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { StrictMode, useState, useMemo } from "react";
 import { createRoot } from "react-dom/client";
@@ -108,7 +108,6 @@ function ListCourses() {
   });
 
   useHostStyles(app, app?.getHostContext());
-  const theme = useDocumentTheme();
 
   const courses = useMemo<Course[]>(() => {
     if (!toolResult) return [];
@@ -124,7 +123,7 @@ function ListCourses() {
     <div style={{
       fontFamily: "var(--font-sans, system-ui, -apple-system, sans-serif)",
       color: "var(--color-text-primary, inherit)",
-      background: "var(--color-background-primary, transparent)",
+      background: "var(--color-background-primary)",
       minHeight: "100%",
       padding: 16,
     }}>

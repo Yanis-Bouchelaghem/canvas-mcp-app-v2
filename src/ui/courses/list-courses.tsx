@@ -8,12 +8,12 @@ import { Badge } from "@/ui/components/badge";
 
 const STATUS_CONFIG: Record<
   Course["workflow_state"],
-  { label: string; variant: "success" | "info" | "warning" | "danger" }
+  { label: string; variant: "success" | "info" | "warning" | "danger"; stripe: string }
 > = {
-  available:   { label: "Active",      variant: "success" },
-  completed:   { label: "Completed",   variant: "info" },
-  unpublished: { label: "Unpublished", variant: "warning" },
-  deleted:     { label: "Deleted",     variant: "danger" },
+  available:   { label: "Active",      variant: "success", stripe: "bg-success-foreground" },
+  completed:   { label: "Completed",   variant: "info",    stripe: "bg-info-foreground" },
+  unpublished: { label: "Unpublished", variant: "warning", stripe: "bg-warning-foreground" },
+  deleted:     { label: "Deleted",     variant: "danger",  stripe: "bg-danger-foreground" },
 };
 
 function formatDate(iso: string | null): string {
@@ -29,15 +29,12 @@ function CourseCard({ course }: { course: Course }) {
   const dateRange = [formatDate(course.start_at), formatDate(course.end_at)]
     .filter(Boolean)
     .join(" — ");
-  const { label, variant } = STATUS_CONFIG[course.workflow_state];
+  const { label, variant, stripe } = STATUS_CONFIG[course.workflow_state];
 
   return (
     <Card className="py-0">
       <CardContent className="flex items-center gap-3 py-3">
-        <div
-          className="w-1 self-stretch shrink-0 rounded-full border border-border"
-          style={{ background: course.course_color ?? "transparent" }}
-        />
+        <div className={`w-1 self-stretch shrink-0 rounded-full ${stripe}`} />
 
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-sm truncate">

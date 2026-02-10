@@ -36,7 +36,10 @@ export function register(server: McpServer) {
     // Data tool — returns raw JSON for the model to reason about
     server.registerTool(
         "list_courses",
-        { description: "List all courses in Canvas LMS" },
+        {
+            description: "List all courses in Canvas LMS",
+            annotations: { readOnlyHint: true, openWorldHint: true },
+        },
         async (extra) => {
             try {
                 const creds = extractCredentials(extra);
@@ -54,6 +57,7 @@ export function register(server: McpServer) {
     registerAppTool(server, "display_courses", {
         title: "Display Courses",
         description: "Display a list of courses in a visual UI. Takes an array of course objects as input. This usually receives the output of list_courses if you want to display them.",
+        annotations: { readOnlyHint: true },
         inputSchema: { courses: z.array(CourseSchema) },
         _meta: { ui: { resourceUri: listCoursesUri } },
     }, async (args) => {

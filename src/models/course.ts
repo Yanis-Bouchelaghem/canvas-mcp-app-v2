@@ -15,7 +15,6 @@ export const CourseSchema = z.object({
     grading_standard_id: z.number().nullable(),
     license: z.string().nullable(),
     grade_passback_setting: z.string().nullable(),
-    course_color: z.string().nullable(),
     time_zone: z.string().nullable(),
     blueprint: z.boolean().optional(),
     template: z.boolean().optional(),

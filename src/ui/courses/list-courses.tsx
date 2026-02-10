@@ -1,17 +1,7 @@
 import { useApp, useHostStyles } from "@modelcontextprotocol/ext-apps/react";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { StrictMode, useState, useMemo } from "react";
+import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
-
-interface Course {
-  id: number;
-  name: string;
-  course_code: string;
-  workflow_state: "unpublished" | "available" | "completed" | "deleted";
-  start_at: string | null;
-  end_at: string | null;
-  course_color: string | null;
-}
+import type { Course } from "../../models/course.js";
 
 const STATUS_CONFIG: Record<Course["workflow_state"], { label: string; bg: string; fg: string }> = {
   available:   { label: "Active",      bg: "var(--color-background-success, #dcfce7)", fg: "var(--color-text-success, #166534)" },
@@ -96,28 +86,21 @@ function CourseCard({ course }: { course: Course }) {
 }
 
 function ListCourses() {
-  const [toolResult, setToolResult] = useState<CallToolResult | null>(null);
+  const [courses, setCourses] = useState<Course[]>([]);
 
   const { app, error } = useApp({
     appInfo: { name: "Canvas LMS", version: "1.0.0" },
     capabilities: {},
     onAppCreated: (app) => {
-      app.ontoolresult = async (result) => setToolResult(result);
+      app.ontoolinput = (params) => {
+        const input = params.arguments as { courses?: Course[] } | undefined;
+        if (input?.courses) setCourses(input.courses);
+      };
       app.onerror = console.error;
     },
   });
 
   useHostStyles(app, app?.getHostContext());
-
-  const courses = useMemo<Course[]>(() => {
-    if (!toolResult) return [];
-    const text = toolResult.content?.find((c) => c.type === "text");
-    if (!text || !("text" in text)) return [];
-    try { return JSON.parse(text.text); }
-    catch { return []; }
-  }, [toolResult]);
-
-  const isError = toolResult?.isError === true;
 
   return (
     <div style={{
@@ -152,7 +135,7 @@ function ListCourses() {
         </div>
       )}
 
-      {app && !toolResult && (
+      {app && courses.length === 0 && (
         <div style={{
           display: "flex",
           alignItems: "center",
@@ -165,21 +148,7 @@ function ListCourses() {
         </div>
       )}
 
-      {isError && (
-        <div style={{
-          padding: "12px 16px",
-          borderRadius: "var(--border-radius-md, 8px)",
-          background: "var(--color-background-danger, #fee2e2)",
-          color: "var(--color-text-danger, #991b1b)",
-          fontSize: "var(--font-text-sm-size, 0.875rem)",
-        }}>
-          {toolResult?.content?.find((c) => c.type === "text" && "text" in c)
-            ? (toolResult.content.find((c) => c.type === "text") as { text: string }).text
-            : "An error occurred."}
-        </div>
-      )}
-
-      {!isError && courses.length > 0 && (
+      {courses.length > 0 && (
         <>
           <div style={{
             fontSize: "var(--font-text-xs-size, 0.75rem)",

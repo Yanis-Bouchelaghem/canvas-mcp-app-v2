@@ -21,11 +21,11 @@ export const UserOutputSchema = z.object({
 
 export const UserListOutputSchema = z.object({
     users: z.array(UserOutputSchema),
-    student_count: z.number(),
-    teacher_count: z.number(),
-    ta_count: z.number(),
-    designer_count: z.number(),
-    observer_count: z.number(),
+    student_count: z.number().optional(),
+    teacher_count: z.number().optional(),
+    ta_count: z.number().optional(),
+    designer_count: z.number().optional(),
+    observer_count: z.number().optional(),
 });
 
 export type UserListOutput = z.infer<typeof UserListOutputSchema>;

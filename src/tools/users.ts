@@ -39,22 +39,16 @@ export function register(server: McpServer) {
                     };
                 });
 
-                let studentCount = 0, teacherCount = 0, taCount = 0, designerCount = 0, observerCount = 0;
-                for (const u of simplified) {
-                    if (u.roles.includes("student"))  studentCount++;
-                    if (u.roles.includes("teacher"))  teacherCount++;
-                    if (u.roles.includes("ta"))       taCount++;
-                    if (u.roles.includes("designer")) designerCount++;
-                    if (u.roles.includes("observer")) observerCount++;
-                }
+                const countRole = (role: string) => simplified.filter((u) => u.roles.includes(role)).length;
+                const include = args.enrollment_types ?? ["student", "teacher", "ta", "designer", "observer"];
 
                 const output: UserListOutput = {
                     users: simplified,
-                    student_count: studentCount,
-                    teacher_count: teacherCount,
-                    ta_count: taCount,
-                    designer_count: designerCount,
-                    observer_count: observerCount,
+                    ...(include.includes("student")  && { student_count:  countRole("student") }),
+                    ...(include.includes("teacher")  && { teacher_count:  countRole("teacher") }),
+                    ...(include.includes("ta")       && { ta_count:       countRole("ta") }),
+                    ...(include.includes("designer") && { designer_count: countRole("designer") }),
+                    ...(include.includes("observer") && { observer_count: countRole("observer") }),
                 };
 
                 return {

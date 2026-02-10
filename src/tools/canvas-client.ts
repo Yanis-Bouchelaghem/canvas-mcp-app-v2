@@ -29,6 +29,8 @@ class CanvasClient {
                 ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
             },
             ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+        }).catch(() => {
+            throw new Error(`Could not reach ${creds.domain}, are you sure this is the right domain?`);
         });
 
         if (!response.ok) {

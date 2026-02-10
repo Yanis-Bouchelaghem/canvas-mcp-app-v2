@@ -2,6 +2,7 @@ import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/proto
 import type { ServerRequest, ServerNotification } from "@modelcontextprotocol/sdk/types.js";
 import { CourseSchema, type Course } from "../models/course.js";
 import { UserSchema, type User } from "../models/user.js";
+import type { EnrollmentTypeFilter } from "../models/enrollment.js";
 import { z } from "zod";
 
 export interface CanvasCredentials {
@@ -71,8 +72,10 @@ class CanvasClient {
         return z.array(CourseSchema).parse(data);
     }
 
-    async getUsersInCourse(creds: CanvasCredentials, courseId: number): Promise<User[]> {
-        const data = await this.requestAll(creds, `/courses/${courseId}/users`, { "include[]": "enrollments" });
+    async getUsersInCourse(creds: CanvasCredentials, courseId: number, enrollmentType?: EnrollmentTypeFilter): Promise<User[]> {
+        const queryParameters: Record<string, string> = { "include[]": "enrollments" };
+        if (enrollmentType) queryParameters["enrollment_type[]"] = enrollmentType;
+        const data = await this.requestAll(creds, `/courses/${courseId}/users`, queryParameters);
         return z.array(UserSchema).parse(data);
     }
 }

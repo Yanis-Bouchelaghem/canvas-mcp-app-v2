@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { canvasClient, extractCredentials } from "./canvas-client.js";
 import type { UserListOutput } from "../models/user.js";
+import { EnrollmentTypeFilterEnum } from "../models/enrollment.js";
 import { z } from "zod";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -16,13 +17,16 @@ export function register(server: McpServer) {
         "list_users_in_course",
         {
             description: "List all users enrolled in a Canvas course, with their roles and enrollment counts per role.",
-            inputSchema: { course_id: z.number().describe("The Canvas course ID") },
+            inputSchema: {
+                course_id: z.number().describe("The Canvas course ID"),
+                enrollment_type: EnrollmentTypeFilterEnum.optional().describe("Filter by enrollment type"),
+            },
             annotations: { readOnlyHint: true, openWorldHint: true },
         },
         async (args, extra) => {
             try {
                 const creds = extractCredentials(extra);
-                const users = await canvasClient.getUsersInCourse(creds, args.course_id);
+                const users = await canvasClient.getUsersInCourse(creds, args.course_id, args.enrollment_type);
 
                 const output: UserListOutput = {
                     users: [],

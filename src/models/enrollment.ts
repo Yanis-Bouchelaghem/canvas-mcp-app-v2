@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const EnrollmentType = z.enum([
+export const EnrollmentTypeEnum = z.enum([
     "StudentEnrollment",
     "TeacherEnrollment",
     "TaEnrollment",
@@ -11,9 +11,14 @@ export const EnrollmentType = z.enum([
 export const EnrollmentSchema = z.object({
     id: z.number(),
     course_id: z.number(),
-    type: EnrollmentType,
+    type: EnrollmentTypeEnum,
     enrollment_state: z.enum(["active", "invited", "inactive", "completed", "deleted", "creation_pending"]),
     role: z.string(),
 });
 
+export const EnrollmentTypeFilterEnum = z.enum([
+    "teacher", "student", "student_view", "ta", "observer", "designer",
+]);
+
 export type Enrollment = z.infer<typeof EnrollmentSchema>;
+export type EnrollmentTypeFilter = z.infer<typeof EnrollmentTypeFilterEnum>;

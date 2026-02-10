@@ -40,7 +40,7 @@ export function register(server: McpServer) {
                 });
 
                 const countRole = (role: string) => simplified.filter((u) => u.roles.includes(role)).length;
-                const include = args.enrollment_types ?? ["student", "teacher", "ta", "designer", "observer"];
+                const include = args.enrollment_types ?? Object.values(ROLE_LABELS);
 
                 const output: UserListOutput = {
                     users: simplified,

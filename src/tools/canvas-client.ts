@@ -21,10 +21,9 @@ export function extractCredentials(extra: RequestHandlerExtra<ServerRequest, Ser
 }
 
 class CanvasClient {
-    private async request(creds: CanvasCredentials, method: string, path: string, params?: Record<string, string>, body?: unknown): Promise<unknown> {
-        const url = new URL(`${creds.domain}/api/v1${path}`);
-        if (params) url.search = new URLSearchParams(params).toString();
-        const response = await fetch(url, {
+    /** Core fetch wrapper: builds URL, sends request, throws on network/HTTP errors. */
+    private async request(creds: CanvasCredentials, method: string, url: URL | string, body?: unknown): Promise<Response> {
+        const response: Response = await fetch(url, {
             method,
             headers: {
                 Authorization: creds.token,
@@ -40,11 +39,34 @@ class CanvasClient {
             throw new Error(`Canvas API error ${response.status}: ${text}`);
         }
 
-        return response.json();
+        return response;
+    }
+
+    private getNextPageURL(response: Response): string | null {
+        return response.headers.get("link")?.match(/<([^>]+)>;\s*rel="next"/)?.[1] ?? null;
+    }
+
+    /** GET a paginated endpoint, following Link rel="next" until all pages are fetched. */
+    private async requestAll(creds: CanvasCredentials, path: string, params?: Record<string, string>): Promise<unknown[]> {
+        const url = new URL(`${creds.domain}/api/v1${path}`);
+        url.search = new URLSearchParams({ per_page: "100", ...params }).toString();
+
+        const results: unknown[] = [];
+        let next: string | null = url.toString();
+
+        while (next) {
+            const response = await this.request(creds, "GET", next);
+            const data: unknown = await response.json();
+            results.push(...(Array.isArray(data) ? data : [data]));
+
+            next = this.getNextPageURL(response);
+        }
+
+        return results;
     }
 
     async getCourses(creds: CanvasCredentials): Promise<Course[]> {
-        const data = await this.request(creds, "GET", "/courses", { "include[]": "total_students" });
+        const data = await this.requestAll(creds, "/courses", { "include[]": "total_students" });
         return z.array(CourseSchema).parse(data);
     }
 }

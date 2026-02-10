@@ -1,14 +1,21 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { viteSingleFile } from 'vite-plugin-singlefile'
+import path from "path"
+import { defineConfig } from "vite"
+import react from "@vitejs/plugin-react"
+import tailwindcss from "@tailwindcss/vite"
+import { viteSingleFile } from "vite-plugin-singlefile"
 
 export default defineConfig({
-    plugins: [react(), viteSingleFile()],
+    plugins: [react(), tailwindcss(), viteSingleFile()],
+    resolve: {
+        alias: {
+            "@": path.resolve(__dirname, "./src"),
+        },
+    },
     build: {
         rollupOptions: {
             input: process.env.INPUT,
         },
-        outDir: "dist", // Output to dist directory
-        emptyOutDir: false, // Don't delete existing files in dist.
-    }
+        outDir: "dist",
+        emptyOutDir: false,
+    },
 })

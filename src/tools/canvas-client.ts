@@ -49,9 +49,15 @@ class CanvasClient {
     }
 
     /** GET a paginated endpoint, following Link rel="next" until all pages are fetched. */
-    private async requestAll(creds: CanvasCredentials, path: string, params?: Record<string, string>): Promise<unknown[]> {
+    private async requestAll(creds: CanvasCredentials, path: string, params?: Record<string, string | string[]>): Promise<unknown[]> {
         const url = new URL(`${creds.domain}/api/v1${path}`);
-        url.search = new URLSearchParams({ per_page: "100", ...params }).toString();
+        const searchParams = new URLSearchParams({ per_page: "100" });
+        for (const [key, value] of Object.entries(params ?? {})) {
+            for (const v of Array.isArray(value) ? value : [value]) {
+                searchParams.append(key, v);
+            }
+        }
+        url.search = searchParams.toString();
 
         const results: unknown[] = [];
         let next: string | null = url.toString();
@@ -72,9 +78,9 @@ class CanvasClient {
         return z.array(CourseSchema).parse(data);
     }
 
-    async getUsersInCourse(creds: CanvasCredentials, courseId: number, enrollmentType?: EnrollmentTypeFilter): Promise<User[]> {
-        const queryParameters: Record<string, string> = { "include[]": "enrollments" };
-        if (enrollmentType) queryParameters["enrollment_type[]"] = enrollmentType;
+    async getUsersInCourse(creds: CanvasCredentials, courseId: number, enrollmentTypes?: EnrollmentTypeFilter[]): Promise<User[]> {
+        const queryParameters: Record<string, string | string[]> = { "include[]": "enrollments" };
+        if (enrollmentTypes?.length) queryParameters["enrollment_type[]"] = enrollmentTypes;
         const data = await this.requestAll(creds, `/courses/${courseId}/users`, queryParameters);
         return z.array(UserSchema).parse(data);
     }

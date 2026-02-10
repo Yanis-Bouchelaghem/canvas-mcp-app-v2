@@ -19,38 +19,43 @@ export function register(server: McpServer) {
             description: "List all users enrolled in a Canvas course, with their roles and enrollment counts per role.",
             inputSchema: {
                 course_id: z.number().describe("The Canvas course ID"),
-                enrollment_type: EnrollmentTypeFilterEnum.optional().describe("Filter by enrollment type"),
+                enrollment_types: z.array(EnrollmentTypeFilterEnum).optional().describe("Filter by enrollment type(s)"),
             },
             annotations: { readOnlyHint: true, openWorldHint: true },
         },
         async (args, extra) => {
             try {
                 const creds = extractCredentials(extra);
-                const users = await canvasClient.getUsersInCourse(creds, args.course_id, args.enrollment_type);
+                const users = await canvasClient.getUsersInCourse(creds, args.course_id, args.enrollment_types);
 
-                const output: UserListOutput = {
-                    users: [],
-                    student_count: 0,
-                    teacher_count: 0,
-                    ta_count: 0,
-                    designer_count: 0,
-                    observer_count: 0,
-                };
-
-                for (const user of users) {
+                const simplified = users.map((user) => {
                     const roles = [...new Set(
                         user.enrollments?.map((e) => ROLE_LABELS[e.type] ?? e.type) ?? []
                     )];
-                    for (const role of roles) {
-                        const key = `${role}_count` as keyof typeof output;
-                        if (key in output) (output[key] as number)++;
-                    }
-                    output.users.push({
+                    return {
                         name: user.name,
                         email: user.email ?? user.login_id ?? null,
                         roles,
-                    });
+                    };
+                });
+
+                let studentCount = 0, teacherCount = 0, taCount = 0, designerCount = 0, observerCount = 0;
+                for (const u of simplified) {
+                    if (u.roles.includes("student"))  studentCount++;
+                    if (u.roles.includes("teacher"))  teacherCount++;
+                    if (u.roles.includes("ta"))       taCount++;
+                    if (u.roles.includes("designer")) designerCount++;
+                    if (u.roles.includes("observer")) observerCount++;
                 }
+
+                const output: UserListOutput = {
+                    users: simplified,
+                    student_count: studentCount,
+                    teacher_count: teacherCount,
+                    ta_count: taCount,
+                    designer_count: designerCount,
+                    observer_count: observerCount,
+                };
 
                 return {
                     content: [{ type: "text", text: JSON.stringify(output) }],

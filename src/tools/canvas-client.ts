@@ -1,6 +1,7 @@
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import type { ServerRequest, ServerNotification } from "@modelcontextprotocol/sdk/types.js";
 import { CourseSchema, type Course } from "../models/course.js";
+import { UserSchema, type User } from "../models/user.js";
 import { z } from "zod";
 
 export interface CanvasCredentials {
@@ -68,6 +69,11 @@ class CanvasClient {
     async getCourses(creds: CanvasCredentials): Promise<Course[]> {
         const data = await this.requestAll(creds, "/courses", { "include[]": "total_students" });
         return z.array(CourseSchema).parse(data);
+    }
+
+    async getUsersInCourse(creds: CanvasCredentials, courseId: number): Promise<User[]> {
+        const data = await this.requestAll(creds, `/courses/${courseId}/users`, { "include[]": "enrollments" });
+        return z.array(UserSchema).parse(data);
     }
 }
 

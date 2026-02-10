@@ -53,7 +53,7 @@ export function register(server: McpServer) {
     // UI tool — pass-through, renders whatever courses the model gives it
     registerAppTool(server, "display_courses", {
         title: "Display Courses",
-        description: "Display a list of courses in a visual UI. Takes an array of course objects as input.",
+        description: "Display a list of courses in a visual UI. Takes an array of course objects as input. This usually receives the output of list_courses if you want to display them.",
         inputSchema: { courses: z.array(CourseSchema) },
         _meta: { ui: { resourceUri: listCoursesUri } },
     }, async (args) => {

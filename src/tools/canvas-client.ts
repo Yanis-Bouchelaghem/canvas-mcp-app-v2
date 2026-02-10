@@ -21,8 +21,10 @@ export function extractCredentials(extra: RequestHandlerExtra<ServerRequest, Ser
 }
 
 class CanvasClient {
-    private async request(creds: CanvasCredentials, method: string, path: string, body?: unknown): Promise<unknown> {
-        const response = await fetch(`${creds.domain}/api/v1${path}`, {
+    private async request(creds: CanvasCredentials, method: string, path: string, params?: Record<string, string>, body?: unknown): Promise<unknown> {
+        const url = new URL(`${creds.domain}/api/v1${path}`);
+        if (params) url.search = new URLSearchParams(params).toString();
+        const response = await fetch(url, {
             method,
             headers: {
                 Authorization: creds.token,
@@ -42,7 +44,7 @@ class CanvasClient {
     }
 
     async getCourses(creds: CanvasCredentials): Promise<Course[]> {
-        const data = await this.request(creds, "GET", "/courses");
+        const data = await this.request(creds, "GET", "/courses", { "include[]": "total_students" });
         return z.array(CourseSchema).parse(data);
     }
 }

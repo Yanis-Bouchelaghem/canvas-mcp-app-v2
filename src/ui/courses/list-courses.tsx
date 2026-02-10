@@ -44,11 +44,16 @@ function CourseCard({ course }: { course: Course }) {
             {course.name}
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">
-            {course.course_code}
+            <span className="font-semibold">{course.course_code}</span>
             {dateRange && <span className="ml-2">{dateRange}</span>}
           </div>
         </div>
 
+        {course.total_students != null && (
+          <span className="text-xs text-muted-foreground shrink-0">
+            {course.total_students} student{course.total_students !== 1 ? "s" : ""}
+          </span>
+        )}
         <Badge variant={variant}>{label}</Badge>
       </CardContent>
     </Card>

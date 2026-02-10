@@ -19,6 +19,7 @@ export const CourseSchema = z.object({
     time_zone: z.string().nullable(),
     blueprint: z.boolean().optional(),
     template: z.boolean().optional(),
+    total_students: z.number().optional(),
 });
 
 export type Course = z.infer<typeof CourseSchema>;

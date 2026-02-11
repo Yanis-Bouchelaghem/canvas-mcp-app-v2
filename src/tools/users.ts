@@ -43,7 +43,7 @@ export function register(server: McpServer) {
                     )];
                     return {
                         name: user.name,
-                        email: user.email ?? user.login_id ?? null,
+                        email: user.email || user.login_id || null,
                         avatar_url: user.avatar_url ?? null,
                         html_url: user.enrollments?.[0]?.html_url ?? null,
                         roles,

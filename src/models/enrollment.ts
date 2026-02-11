@@ -14,6 +14,7 @@ export const EnrollmentSchema = z.object({
     type: EnrollmentTypeEnum,
     enrollment_state: z.enum(["active", "invited", "inactive", "completed", "deleted", "creation_pending"]),
     role: z.string(),
+    html_url: z.string(),
 });
 
 export const EnrollmentTypeFilterEnum = z.enum([

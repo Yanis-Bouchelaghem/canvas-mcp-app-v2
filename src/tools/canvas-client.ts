@@ -79,7 +79,7 @@ class CanvasClient {
     }
 
     async getUsersInCourse(creds: CanvasCredentials, courseId: number, enrollmentTypes?: EnrollmentTypeFilter[]): Promise<User[]> {
-        const queryParameters: Record<string, string | string[]> = { "include[]": "enrollments" };
+        const queryParameters: Record<string, string | string[]> = { "include[]": ["enrollments", "avatar_url"] };
         if (enrollmentTypes?.length) queryParameters["enrollment_type[]"] = enrollmentTypes;
         const data = await this.requestAll(creds, `/courses/${courseId}/users`, queryParameters);
         return z.array(UserSchema).parse(data);

@@ -8,6 +8,7 @@ export const UserSchema = z.object({
     sortable_name: z.string(),
     login_id: z.string().optional(),
     email: z.string().optional(),
+    avatar_url: z.string().optional(),
     enrollments: z.array(EnrollmentSchema).optional(),
 });
 
@@ -16,8 +17,12 @@ export type User = z.infer<typeof UserSchema>;
 export const UserOutputSchema = z.object({
     name: z.string(),
     email: z.string().nullable(),
+    avatar_url: z.string().nullable(),
+    html_url: z.string().nullable(),
     roles: z.array(z.string()),
 });
+
+export type UserOutput = z.infer<typeof UserOutputSchema>;
 
 export const UserListOutputSchema = z.object({
     users: z.array(UserOutputSchema),

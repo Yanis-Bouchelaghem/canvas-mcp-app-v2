@@ -8,6 +8,7 @@ import { z } from "zod";
 export interface CanvasCredentials {
     token: string;
     domain: string;
+    isAdmin: boolean;
 }
 
 /** Extract Canvas credentials from MCP request headers, falling back to env vars. */
@@ -19,7 +20,8 @@ export function extractCredentials(extra: RequestHandlerExtra<ServerRequest, Ser
         throw new Error("Missing credentials or domain. Provide headers 'authorization' and 'x-canvas-domain', or set CANVAS_TOKEN and CANVAS_DOMAIN env vars.");
     }
 
-    return { token: String(token), domain: String(domain) };
+    const noAdmin = extra.requestInfo?.headers["x-canvas-no-admin"] ?? process.env["CANVAS_NO_ADMIN"];
+    return { token: String(token), domain: String(domain), isAdmin: !noAdmin };
 }
 
 class CanvasClient {

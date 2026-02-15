@@ -8,6 +8,7 @@ import { EnrollmentTypeFilterEnum } from "../models/enrollment.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
+import { SessionState, KnownUser } from "../../server.js";
 
 const DIST_DIR = import.meta.filename.endsWith(".ts")
     ? path.join(import.meta.dirname, "../../dist/src/ui/users")
@@ -21,7 +22,7 @@ const ROLE_LABELS: Record<string, string> = {
     ObserverEnrollment: "observer",
 };
 
-export function register(server: McpServer) {
+export function register(server: McpServer, sessionState: SessionState) {
     server.registerTool(
         "list_users_in_course",
         {
@@ -35,7 +36,11 @@ export function register(server: McpServer) {
         async (args, extra) => {
             try {
                 const creds = extractCredentials(extra);
-                const users = await canvasClient.getUsersInCourse(creds, args.course_id, args.enrollment_types);
+                const users = await canvasClient.getUsersInCourse(
+                    creds,
+                    args.course_id,
+                    { enrollmentTypes: args.enrollment_types, include: ["enrollments", "avatar_url"] }
+                );
 
                 const simplified = users.map((user) => {
                     const roles = [...new Set(
@@ -55,9 +60,9 @@ export function register(server: McpServer) {
 
                 const output: UserListOutput = {
                     users: simplified,
-                    ...(include.includes("student")  && { student_count:  countRole("student") }),
-                    ...(include.includes("teacher")  && { teacher_count:  countRole("teacher") }),
-                    ...(include.includes("ta")       && { ta_count:       countRole("ta") }),
+                    ...(include.includes("student") && { student_count: countRole("student") }),
+                    ...(include.includes("teacher") && { teacher_count: countRole("teacher") }),
+                    ...(include.includes("ta") && { ta_count: countRole("ta") }),
                     ...(include.includes("designer") && { designer_count: countRole("designer") }),
                     ...(include.includes("observer") && { observer_count: countRole("observer") }),
                 };
@@ -103,4 +108,40 @@ export function register(server: McpServer) {
     }, async (args) => {
         return { content: [{ type: "text", text: `Displayed ${args.users.length} user(s).` }] };
     });
+
+    server.registerTool(
+        "refresh_known_users",
+        {
+            description: "Indexes all Canvas users visible in this session. Use this tool before checking if a user exists, or when you think the state has become stale.",
+            inputSchema: {},
+            annotations: { readOnlyHint: true },
+        },
+        async (args, extra) => {
+            try {
+                const creds = extractCredentials(extra);
+                const allCourses = await canvasClient.getCourses(creds);
+                const knownUsers = new Map<string, KnownUser>();
+                for (const course of allCourses) {
+                    const users = await canvasClient.getUsersInCourse(creds, course.id, { include: ["email"] });
+                    for (const user of users) {
+                        let email = user.email || user.login_id;
+                        if (email) {
+                            email = email.toLowerCase();
+                            knownUsers.set(email, {id: user.id, name: user.name, email});
+                        }
+                    }
+                }
+                sessionState.knownUsers = knownUsers;
+                return {
+                    content: [{ type: "text", text:  `Indexed ${knownUsers.size} unique users across ${allCourses.length} courses.`}]
+                }
+            }
+            catch (error) {
+            return {
+                content: [{type: "text", text: error instanceof Error ? error.message : String(error) }],
+                isError: true,
+            }
+            }
+        }
+    );
 }

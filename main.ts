@@ -6,7 +6,14 @@ import cors from "cors";
 import express from "express";
 
 const port = parseInt(process.env.PORT ?? "3001", 10);
-const transports: Record<string, StreamableHTTPServerTransport> = {};
+const SESSION_TTL_MS = 1 * 60 * 60 * 1000; // 60 minutes
+
+interface Session {
+    transport: StreamableHTTPServerTransport;
+    lastActivity: number;
+}
+
+const sessions: Record<string, Session> = {};
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -14,8 +21,9 @@ app.use(express.json());
 app.post("/mcp", async (request, result) => {
     // Creates a new session, or forwards the request to the existing session.
     const sessionId = request.headers["mcp-session-id"] as string | undefined;
-    if (sessionId && transports[sessionId]) {
-        await transports[sessionId].handleRequest(request, result, request.body);
+    if (sessionId && sessions[sessionId]) {
+        sessions[sessionId].lastActivity = Date.now();
+        await sessions[sessionId].transport.handleRequest(request, result, request.body);
         return;
     }
 
@@ -31,12 +39,12 @@ app.post("/mcp", async (request, result) => {
     const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: (sessionId) => {
-            transports[sessionId] = transport;
+            sessions[sessionId] = { transport, lastActivity: Date.now() };
         },
     });
     transport.onclose = () => {
         const sessionId = transport.sessionId;
-        if (sessionId) delete transports[sessionId];
+        if (sessionId) delete sessions[sessionId];
     };
 
     const mcpServer = createServer();
@@ -47,23 +55,38 @@ app.post("/mcp", async (request, result) => {
 app.get("/mcp", async (request, result) => {
     // Forwards the request to the existing session.
     const sessionId = request.headers["mcp-session-id"] as string | undefined;
-    if (!sessionId || !transports[sessionId]) {
+    if (!sessionId || !sessions[sessionId]) {
         result.status(400).send("Invalid or missing session ID");
         return;
     }
-    await transports[sessionId].handleRequest(request, result);
+    sessions[sessionId].lastActivity = Date.now();
+    await sessions[sessionId].transport.handleRequest(request, result);
 });
 
 app.delete("/mcp", async (request, result) => {
-    // Forwards the request to the existing session.
+    // Forwards the request to the existing session so it can delete itself.
     const sessionId = request.headers["mcp-session-id"] as string | undefined;
-    if (!sessionId || !transports[sessionId]) {
+    if (!sessionId || !sessions[sessionId]) {
         result.status(400).send("Invalid or missing session ID");
         return;
     }
-    await transports[sessionId].handleRequest(request, result);
+    await sessions[sessionId].transport.handleRequest(request, result);
 });
 
+
+// Evict sessions that have been inactive for longer than SESSION_TTL_MS.
+setInterval(() => {
+    const now = Date.now();
+    let evictedCount = 0;
+    for (const [id, session] of Object.entries(sessions)) {
+        if (now - session.lastActivity > SESSION_TTL_MS) {
+            session.transport.close();
+            delete sessions[id];
+            evictedCount++;
+        }
+    }
+    if (evictedCount) console.log(`Evicted ${evictedCount} inactive session(s).`)
+}, 5 * 60 * 1000); // Check every 5 minutes
 
 app.listen(port, () => {
     console.log(`MCP server listening on http://localhost:${port}/mcp`);

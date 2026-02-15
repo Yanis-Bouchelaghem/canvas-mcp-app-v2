@@ -8,7 +8,7 @@ import { EnrollmentTypeFilterEnum } from "../models/enrollment.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { SessionState, KnownUser } from "../../server.js";
+import type { SessionState, KnownUser } from "../../server.js";
 
 const DIST_DIR = import.meta.filename.endsWith(".ts")
     ? path.join(import.meta.dirname, "../../dist/src/ui/users")
@@ -112,7 +112,8 @@ export function register(server: McpServer, sessionState: SessionState) {
     server.registerTool(
         "refresh_known_users",
         {
-            description: "Indexes all Canvas users visible in this session. Use this tool before checking if a user exists, or when you think the state has become stale.",
+            title: "Refresh known users",
+            description: "Indexes all Canvas users visible in this session. Use this tool when another tool requires it.",
             inputSchema: {},
             annotations: { readOnlyHint: true },
         },
@@ -144,4 +145,35 @@ export function register(server: McpServer, sessionState: SessionState) {
             }
         }
     );
+
+    server.registerTool(
+        "check_users_exist",
+        {
+            title: "Check users exist",
+            description: "Check whether the given emails are registered and have a user ID in this canvas instance.",
+            inputSchema: { emails: z.array(z.string()) },
+            annotations: { readOnlyHint: true }
+        },
+        async (args, extra) => {
+            if (sessionState.knownUsers == null) {
+                return {
+                    content: [{type: "text", text: "Call refresh_known_users before using this function."}],
+                    isError: true
+                }
+            }
+            let found: KnownUser[] = [];
+            let notFound: string[] = [];
+            for (const email of args.emails) {
+                const knownUser = sessionState.knownUsers.get(email.toLowerCase());
+                if(knownUser) {
+                    found.push(knownUser);
+                } else {
+                    notFound.push(email);
+                }
+            }
+            return {
+                content: [{type: "text", text: JSON.stringify({ found, notFound })}]
+            }
+        }
+    )
 }

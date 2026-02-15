@@ -21,5 +21,7 @@ export const EnrollmentTypeFilterEnum = z.enum([
     "teacher", "student", "student_view", "ta", "observer", "designer",
 ]);
 
+export const UnenrollActionEnum = z.enum(["conclude", "delete", "deactivate"]);
+
 export type Enrollment = z.infer<typeof EnrollmentSchema>;
 export type EnrollmentTypeFilter = z.infer<typeof EnrollmentTypeFilterEnum>;

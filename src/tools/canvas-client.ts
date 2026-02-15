@@ -97,6 +97,11 @@ class CanvasClient {
         return ProgressSchema.parse(await response.json());
     }
 
+    async deleteEnrollment(creds: CanvasCredentials, courseId: number, enrollmentId: number, task = "conclude"): Promise<void> {
+        const url = `${creds.domain}/api/v1/courses/${courseId}/enrollments/${enrollmentId}`;
+        await this.request(creds, "DELETE", url, { task });
+    }
+
     async getProgress(creds: CanvasCredentials, progressId: number): Promise<Progress> {
         const url = `${creds.domain}/api/v1/progress/${progressId}`;
         const response = await this.request(creds, "GET", url);

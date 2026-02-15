@@ -34,14 +34,14 @@ function ProgressBar({ value, state }: { value: number; state: Progress["workflo
   );
 }
 
-interface EnrollCounts {
-  userCount: number;
-  courseCount: number;
+interface EnrollInfo {
+  userEmails: string[];
+  courseNames: string[];
 }
 
 function EnrollProgress() {
   const [progress, setProgress] = useState<Progress | null>(null);
-  const [counts, setCounts] = useState<EnrollCounts | null>(null);
+  const [info, setInfo] = useState<EnrollInfo | null>(null);
   const appRef = useRef<ReturnType<typeof useApp>["app"]>(null);
 
   const { app, error } = useApp({
@@ -50,9 +50,9 @@ function EnrollProgress() {
     onAppCreated: (app) => {
       appRef.current = app;
       app.ontoolinput = (params) => {
-        const args = params.arguments as { user_ids?: number[]; course_ids?: number[] } | undefined;
-        if (args?.user_ids && args?.course_ids) {
-          setCounts({ userCount: args.user_ids.length, courseCount: args.course_ids.length });
+        const args = params.arguments as { user_emails?: string[]; course_names?: string[] } | undefined;
+        if (args?.user_emails && args?.course_names) {
+          setInfo({ userEmails: args.user_emails, courseNames: args.course_names });
         }
       };
       app.ontoolresult = (result) => {
@@ -100,10 +100,10 @@ function EnrollProgress() {
   const config = progress ? STATUS_CONFIG[progress.workflow_state] : null;
 
   function enrollLabel() {
-    if (!counts) return isDone ? "Enrollment complete" : "Enrolling…";
-    const { userCount, courseCount } = counts;
-    const users = `${userCount} user${userCount !== 1 ? "s" : ""}`;
-    const courses = `${courseCount} course${courseCount !== 1 ? "s" : ""}`;
+    if (!info) return isDone ? "Enrollment complete" : "Enrolling…";
+    const { userEmails, courseNames } = info;
+    const users = `${userEmails.length} user${userEmails.length !== 1 ? "s" : ""}`;
+    const courses = `${courseNames.length} course${courseNames.length !== 1 ? "s" : ""}`;
     return isDone
       ? `Enrolled ${users} into ${courses}`
       : `Enrolling ${users} into ${courses}...`;
@@ -149,6 +149,27 @@ function EnrollProgress() {
             {isDone && progress.workflow_state === "failed" && (
               <div className="text-xs text-destructive">
                 Enrollment failed. {progress.message || "Check Canvas for details."}
+              </div>
+            )}
+
+            {info && (
+              <div className="flex flex-col gap-2 mt-1">
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground mb-1">Users</div>
+                  <div className="flex flex-wrap gap-1">
+                    {info.userEmails.map((email) => (
+                      <Badge key={email} variant="outline">{email}</Badge>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-muted-foreground mb-1">Courses</div>
+                  <div className="flex flex-wrap gap-1">
+                    {info.courseNames.map((name) => (
+                      <Badge key={name} variant="outline">{name}</Badge>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>

@@ -42,6 +42,8 @@ export function register(server: McpServer, sessionState: SessionState) {
             user_ids: z.array(z.number()).describe("Canvas user IDs to enroll"),
             course_ids: z.array(z.number()).describe("Canvas course IDs to enroll users into"),
             enrollment_type: EnrollmentTypeEnum.optional().describe("Enrollment type (defaults to StudentEnrollment)"),
+            user_emails: z.array(z.string()).optional().describe("User emails (display only, shown in the UI)"),
+            course_names: z.array(z.string()).optional().describe("Course names (display only, shown in the UI)"),
         },
         _meta: { ui: { resourceUri: enrollProgressUri } },
     }, async (args, extra) => {

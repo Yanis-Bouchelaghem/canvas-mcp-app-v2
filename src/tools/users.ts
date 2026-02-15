@@ -147,17 +147,17 @@ export function register(server: McpServer, sessionState: SessionState) {
     );
 
     server.registerTool(
-        "check_users_exist",
+        "get_users_info",
         {
-            title: "Check users exist",
-            description: "Check whether the given emails are registered and have a user ID in this canvas instance.",
+            title: "Get users info",
+            description: "Get info of users tied to the given emails, can also be used to check if users exist.",
             inputSchema: { emails: z.array(z.string()) },
             annotations: { readOnlyHint: true }
         },
         async (args, extra) => {
             if (sessionState.knownUsers == null) {
                 return {
-                    content: [{type: "text", text: "Call refresh_known_users before using this function."}],
+                    content: [{type: "text", text: "Call refresh_known_users before using this tool."}],
                     isError: true
                 }
             }

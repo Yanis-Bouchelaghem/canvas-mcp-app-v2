@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { register as registerCourseTools } from "./src/tools/courses.js";
 import { register as registerUserTools } from "./src/tools/users.js";
+import { register as registerEnrollmentTools } from "./src/tools/enrollments.js";
 
 export interface KnownUser {
     id: number;
@@ -21,6 +22,7 @@ export function createServer(): McpServer {
     const sessionState: SessionState = { knownUsers: null };
     registerCourseTools(server);
     registerUserTools(server, sessionState);
+    registerEnrollmentTools(server, sessionState);
 
     return server;
 }

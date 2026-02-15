@@ -2,6 +2,7 @@ import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/proto
 import type { ServerRequest, ServerNotification } from "@modelcontextprotocol/sdk/types.js";
 import { CourseSchema, type Course } from "../models/course.js";
 import { UserSchema, type User } from "../models/user.js";
+import { ProgressSchema, type Progress } from "../models/progress.js";
 import type { EnrollmentTypeFilter } from "../models/enrollment.js";
 import { z } from "zod";
 
@@ -86,6 +87,20 @@ class CanvasClient {
         if (options?.enrollmentTypes?.length) queryParameters["enrollment_type[]"] = options?.enrollmentTypes;
         const data = await this.requestAll(creds, `/courses/${courseId}/users`, queryParameters);
         return z.array(UserSchema).parse(data);
+    }
+
+    async bulkEnroll(creds: CanvasCredentials, userIds: number[], courseIds: number[], enrollmentType?: string): Promise<Progress> {
+        const url = `${creds.domain}/api/v1/accounts/self/bulk_enrollment`;
+        const body: Record<string, unknown> = { user_ids: userIds, course_ids: courseIds };
+        if (enrollmentType) body.enrollment_type = enrollmentType;
+        const response = await this.request(creds, "POST", url, body);
+        return ProgressSchema.parse(await response.json());
+    }
+
+    async getProgress(creds: CanvasCredentials, progressId: number): Promise<Progress> {
+        const url = `${creds.domain}/api/v1/progress/${progressId}`;
+        const response = await this.request(creds, "GET", url);
+        return ProgressSchema.parse(await response.json());
     }
 }
 

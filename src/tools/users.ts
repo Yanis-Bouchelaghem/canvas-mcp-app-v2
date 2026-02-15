@@ -43,19 +43,20 @@ export function register(server: McpServer, sessionState: SessionState) {
                 );
 
                 const simplified = users.map((user) => {
-                    const roles = [...new Set(
-                        user.enrollments?.map((e) => ROLE_LABELS[e.type] ?? e.type) ?? []
-                    )];
+                    const enrollments = user.enrollments?.map((e) => ({
+                        enrollment_id: e.id,
+                        role: ROLE_LABELS[e.type] ?? e.type,
+                    })) ?? [];
                     return {
                         name: user.name,
                         email: user.email || user.login_id || null,
                         avatar_url: user.avatar_url ?? null,
                         html_url: user.enrollments?.[0]?.html_url ?? null,
-                        roles,
+                        enrollments,
                     };
                 });
 
-                const countRole = (role: string) => simplified.filter((u) => u.roles.includes(role)).length;
+                const countRole = (role: string) => simplified.filter((u) => u.enrollments.some((e) => e.role === role)).length;
                 const include = args.enrollment_types ?? Object.values(ROLE_LABELS);
 
                 const output: UserListOutput = {

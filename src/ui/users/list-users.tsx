@@ -55,7 +55,7 @@ function UserCard({ user, app }: { user: UserOutput; app: ReturnType<typeof useA
         </div>
 
         <div className="flex gap-1.5 shrink-0">
-          {user.roles.map((role) => {
+          {[...new Set(user.enrollments?.map((e) => e.role) ?? [])].map((role) => {
             const config = ROLE_CONFIG[role] ?? { label: role, variant: "secondary" as const };
             return (
               <Badge key={role} variant={config.variant}>{config.label}</Badge>

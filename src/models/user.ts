@@ -14,12 +14,17 @@ export const UserSchema = z.object({
 
 export type User = z.infer<typeof UserSchema>;
 
+export const UserEnrollmentOutputSchema = z.object({
+    enrollment_id: z.number(),
+    role: z.string(),
+});
+
 export const UserOutputSchema = z.object({
     name: z.string(),
     email: z.string().nullable(),
     avatar_url: z.string().nullable(),
     html_url: z.string().nullable(),
-    roles: z.array(z.string()),
+    enrollments: z.array(UserEnrollmentOutputSchema),
 });
 
 export type UserOutput = z.infer<typeof UserOutputSchema>;

@@ -3,10 +3,18 @@ import { register as registerCourseTools } from "./src/tools/courses.js";
 import { register as registerUserTools } from "./src/tools/users.js";
 import { register as registerEnrollmentTools } from "./src/tools/enrollments.js";
 
+export interface KnownUserEnrollment {
+    enrollment_id: number;
+    course_id: number;
+    role: string;
+    state: string;
+}
+
 export interface KnownUser {
     id: number;
     name: string;
     email: string;
+    enrollments: KnownUserEnrollment[];
 }
 
 export interface SessionState {

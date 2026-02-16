@@ -8,7 +8,7 @@ import { EnrollmentTypeFilterEnum } from "../models/enrollment.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import type { SessionState, KnownUser } from "../../server.js";
+import type { SessionState, KnownUser, KnownUserEnrollment } from "../../server.js";
 
 const DIST_DIR = import.meta.filename.endsWith(".ts")
     ? path.join(import.meta.dirname, "../../dist/src/ui/users")
@@ -124,12 +124,24 @@ export function register(server: McpServer, sessionState: SessionState) {
                 const allCourses = await canvasClient.getCourses(creds);
                 const knownUsers = new Map<string, KnownUser>();
                 for (const course of allCourses) {
-                    const users = await canvasClient.getUsersInCourse(creds, course.id, { include: ["email"] });
+                    const users = await canvasClient.getUsersInCourse(creds, course.id, { include: ["email", "enrollments"] });
                     for (const user of users) {
                         let email = user.email || user.login_id;
                         if (email) {
                             email = email.toLowerCase();
-                            knownUsers.set(email, {id: user.id, name: user.name, email});
+                            const newEnrollments: KnownUserEnrollment[] = user.enrollments?.map((e) => ({
+                                enrollment_id: e.id,
+                                course_id: e.course_id,
+                                role: ROLE_LABELS[e.type] ?? e.type,
+                                state: e.enrollment_state,
+                            })) ?? [];
+
+                            const existing = knownUsers.get(email);
+                            if (existing) {
+                                existing.enrollments.push(...newEnrollments);
+                            } else {
+                                knownUsers.set(email, { id: user.id, name: user.name, email, enrollments: newEnrollments });
+                            }
                         }
                     }
                 }

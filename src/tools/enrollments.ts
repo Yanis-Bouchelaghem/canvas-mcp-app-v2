@@ -4,6 +4,7 @@ import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
 import { canvasClient, extractCredentials } from "./canvas-client.js";
 import { ProgressSchema } from "../models/progress.js";
 import { EnrollmentTypeEnum, UnenrollActionEnum } from "../models/enrollment.js";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
@@ -57,6 +58,7 @@ export function register(server: McpServer, sessionState: SessionState) {
             );
             return {
                 content: [{ type: "text", text: JSON.stringify(progress) }],
+                _meta: { viewUUID: randomUUID() },
             };
         } catch (error) {
             return {
@@ -110,6 +112,7 @@ export function register(server: McpServer, sessionState: SessionState) {
     }, async () => {
         return {
             content: [{ type: "text", text: "Unenrollment proposal displayed. Waiting for teacher to confirm or cancel." }],
+            _meta: { viewUUID: randomUUID() },
         };
     });
 

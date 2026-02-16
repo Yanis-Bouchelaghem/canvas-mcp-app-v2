@@ -27,11 +27,24 @@ const ACTION_CONFIG: Record<UnenrollUser["action"], { label: string; variant: "w
   deactivate: { label: "Deactivate", variant: "info" },
 };
 
+interface PersistedState {
+  status: Status;
+  result: ApplyResult | null;
+}
+
 function UnenrollPreview() {
   const [courses, setCourses] = useState<UnenrollCourse[]>([]);
   const [status, setStatus] = useState<Status>("preview");
   const [result, setResult] = useState<ApplyResult | null>(null);
   const appRef = useRef<ReturnType<typeof useApp>["app"]>(null);
+  const viewUUIDRef = useRef<string | undefined>(undefined);
+
+  function saveState(s: Status, r: ApplyResult | null) {
+    if (!viewUUIDRef.current) return;
+    try {
+      localStorage.setItem(viewUUIDRef.current, JSON.stringify({ status: s, result: r } satisfies PersistedState));
+    } catch { /* ignore */ }
+  }
 
   const { app, error } = useApp({
     appInfo: { name: "Canvas LMS", version: "1.0.0" },
@@ -41,6 +54,19 @@ function UnenrollPreview() {
       app.ontoolinput = (params) => {
         const args = params.arguments as { courses?: UnenrollCourse[] } | undefined;
         if (args?.courses) setCourses(args.courses);
+      };
+      app.ontoolresult = (res) => {
+        const uuid = res._meta?.viewUUID ? String(res._meta.viewUUID) : undefined;
+        if (!uuid) return;
+        viewUUIDRef.current = uuid;
+        try {
+          const saved = localStorage.getItem(uuid);
+          if (saved) {
+            const parsed = JSON.parse(saved) as PersistedState;
+            setStatus(parsed.status);
+            setResult(parsed.result);
+          }
+        } catch { /* ignore */ }
       };
       app.onerror = console.error;
     },
@@ -52,6 +78,7 @@ function UnenrollPreview() {
     if (!appRef.current || courses.length === 0) return;
     setStatus("applying");
 
+    let applyResult: ApplyResult;
     try {
       const payload = courses.map((c) => ({
         course_id: c.course_id,
@@ -67,14 +94,14 @@ function UnenrollPreview() {
       });
 
       const text = res.content?.find((c: { type: string }) => c.type === "text") as { text: string } | undefined;
-      if (text) {
-        setResult(JSON.parse(text.text) as ApplyResult);
-      }
+      applyResult = text ? JSON.parse(text.text) as ApplyResult : { succeeded: 0, failed: [] };
     } catch {
-      setResult({ succeeded: 0, failed: [{ enrollment_id: 0, error: "Failed to apply unenrollment" }] });
+      applyResult = { succeeded: 0, failed: [{ enrollment_id: 0, error: "Failed to apply unenrollment" }] };
     }
 
+    setResult(applyResult);
     setStatus("done");
+    saveState("done", applyResult);
   }
 
   const totalUsers = courses.reduce((sum, c) => sum + c.users.length, 0);
@@ -137,7 +164,7 @@ function UnenrollPreview() {
           {status === "preview" && (
             <div className="flex gap-2 justify-end mt-1">
               <button
-                onClick={() => setStatus("cancelled")}
+                onClick={() => { setStatus("cancelled"); saveState("cancelled", null); }}
                 className="px-3 py-1.5 text-xs font-medium rounded-md border border-border bg-secondary text-secondary-foreground hover:bg-accent cursor-pointer"
               >
                 Cancel

@@ -39,10 +39,23 @@ interface EnrollInfo {
   courseNames: string[];
 }
 
+interface PersistedState {
+  progress: Progress | null;
+  info: EnrollInfo | null;
+}
+
 function EnrollProgress() {
   const [progress, setProgress] = useState<Progress | null>(null);
   const [info, setInfo] = useState<EnrollInfo | null>(null);
   const appRef = useRef<ReturnType<typeof useApp>["app"]>(null);
+  const viewUUIDRef = useRef<string | undefined>(undefined);
+
+  function saveState(p: Progress | null, i: EnrollInfo | null) {
+    if (!viewUUIDRef.current) return;
+    try {
+      localStorage.setItem(viewUUIDRef.current, JSON.stringify({ progress: p, info: i } satisfies PersistedState));
+    } catch { /* ignore */ }
+  }
 
   const { app, error } = useApp({
     appInfo: { name: "Canvas LMS", version: "1.0.0" },
@@ -56,6 +69,22 @@ function EnrollProgress() {
         }
       };
       app.ontoolresult = (result) => {
+        // Capture viewUUID and restore persisted state if available
+        const uuid = result._meta?.viewUUID ? String(result._meta.viewUUID) : undefined;
+        if (uuid) {
+          viewUUIDRef.current = uuid;
+          try {
+            const saved = localStorage.getItem(uuid);
+            if (saved) {
+              const parsed = JSON.parse(saved) as PersistedState;
+              if (parsed.progress) setProgress(parsed.progress);
+              if (parsed.info) setInfo(parsed.info);
+              return;
+            }
+          } catch { /* ignore */ }
+        }
+
+        // No persisted state — parse progress from tool result
         const text = result.content?.find((c) => c.type === "text") as { text: string } | undefined;
         if (text) {
           try {
@@ -86,6 +115,7 @@ function EnrollProgress() {
         if (text) {
           const updated: Progress = JSON.parse(text.text);
           setProgress(updated);
+          saveState(updated, info);
         }
       } catch {
         // ignore polling errors

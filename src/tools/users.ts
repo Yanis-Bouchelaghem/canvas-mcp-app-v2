@@ -163,7 +163,7 @@ export function register(server: McpServer, sessionState: SessionState) {
         "get_users_info",
         {
             title: "Get users info",
-            description: "Get info of users tied to the given emails, can also be used to check if users exist.",
+            description: "Get info of users tied to the given emails, including all their enrollments (enrollment ID, course ID, role, state). Can also be used to check if users exist.",
             inputSchema: { emails: z.array(z.string()) },
             annotations: { readOnlyHint: true }
         },

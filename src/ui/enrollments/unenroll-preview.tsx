@@ -21,7 +21,7 @@ interface UnenrollCourse {
 type ApplyResult = { succeeded: number; failed: { enrollment_id: number; error: string }[] };
 type Status = "preview" | "applying" | "done" | "cancelled";
 
-const ACTION_CONFIG: Record<string, { label: string; variant: "warning" | "danger" | "info" }> = {
+const ACTION_CONFIG: Record<UnenrollUser["action"], { label: string; variant: "warning" | "danger" | "info" }> = {
   conclude:   { label: "Conclude",   variant: "warning" },
   delete:     { label: "Delete",     variant: "danger" },
   deactivate: { label: "Deactivate", variant: "info" },
@@ -109,18 +109,23 @@ function UnenrollPreview() {
 
           {courses.map((course) => (
             <Card key={course.course_id}>
-              <CardContent className="flex flex-col gap-2 py-3">
-                <div className="text-sm font-semibold">{course.course_name}</div>
+              <CardContent className="flex flex-col gap-1.5 py-3">
+                <div className="flex items-baseline justify-between gap-2 mb-1">
+                  <div className="text-sm font-semibold">{course.course_name}</div>
+                  <div className="text-xs text-muted-foreground shrink-0">
+                    {course.users.length} user{course.users.length !== 1 ? "s" : ""} · ID {course.course_id}
+                  </div>
+                </div>
 
                 {course.users.map((user) => {
                   const config = ACTION_CONFIG[user.action];
                   return (
-                    <div key={user.enrollment_id} className="flex items-center gap-2 text-xs">
+                    <div key={user.enrollment_id} className="flex items-center text-sm py-1 border-t border-border/50">
                       <div className="flex-1 min-w-0">
                         <span className="font-medium">{user.user_name}</span>
-                        <span className="text-muted-foreground ml-1">({user.user_email})</span>
+                        <span className="text-muted-foreground text-xs ml-1.5">{user.user_email}</span>
                       </div>
-                      <span className="text-muted-foreground shrink-0">→</span>
+                      <svg className="w-8 h-4 text-muted-foreground mx-3 shrink-0" viewBox="0 0 32 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 8h28"/><path d="m24 2 6 6-6 6"/></svg>
                       <Badge variant={config.variant} className="shrink-0">{config.label}</Badge>
                     </div>
                   );

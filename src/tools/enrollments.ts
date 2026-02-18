@@ -37,7 +37,7 @@ export function register(server: McpServer, sessionState: SessionState) {
 
     registerAppTool(server, "enroll_users_in_courses", {
         title: "Enroll Users in Courses",
-        description: "Bulk-enroll users into one or more courses. Takes user IDs, course IDs, and an optional enrollment type. Returns a progress object tracking the async job.",
+        description: "Bulk-enroll users into one or more courses. Displays a visual progress UI to the user showing enrollment status. Get user IDs from get_users_info and course IDs from list_courses first. Always provide user_emails and course_names so the UI can display what is being enrolled.",
         annotations: { readOnlyHint: false },
         inputSchema: {
             user_ids: z.array(z.number()).describe("Canvas user IDs to enroll"),
@@ -103,7 +103,7 @@ export function register(server: McpServer, sessionState: SessionState) {
 
     registerAppTool(server, "propose_unenroll_users_from_courses", {
         title: "Propose Unenroll Users from Courses",
-        description: "Show a preview of users to be unenrolled from courses. The teacher can review and confirm or cancel. Provide course names, user names/emails, enrollment IDs, and the action (conclude, delete, or deactivate) for each.",
+        description: "Show a preview of users to be unenrolled from courses. Displays a visual UI where the teacher reviews and confirms or cancels the proposed unenrollments. Get enrollment IDs from get_users_info and course names from list_courses first. Provide all display fields (course_name, user_name, user_email) along with enrollment_id and action (conclude, delete, or deactivate) for each entry.",
         annotations: { readOnlyHint: true },
         inputSchema: {
             courses: z.array(unenrollCourseSchema).describe("Courses with users to unenroll"),

@@ -37,7 +37,7 @@ export function register(server: McpServer) {
     server.registerTool(
         "list_courses",
         {
-            description: "List all courses in Canvas LMS",
+            description: "List all courses in Canvas LMS. Returns course IDs, names, codes, states, and student counts. Use display_courses to show the results visually. Use this to get course IDs and names before enrolling or unenrolling users.",
             annotations: { readOnlyHint: true, openWorldHint: true },
         },
         async (extra) => {
@@ -56,7 +56,7 @@ export function register(server: McpServer) {
     // UI tool — pass-through, renders whatever courses the model gives it
     registerAppTool(server, "display_courses", {
         title: "Display Courses",
-        description: "Display a list of courses in a visual UI. Takes an array of course objects as input. This usually receives the output of list_courses if you want to display them.",
+        description: "Display courses visually in a rich UI. When you would otherwise write the course list as text, use this instead — it displays an interactive UI to the user. Pass the course objects from list_courses directly.",
         annotations: { readOnlyHint: true },
         inputSchema: { courses: z.array(CourseSchema) },
         _meta: { ui: { resourceUri: listCoursesUri } },

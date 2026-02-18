@@ -26,7 +26,7 @@ export function register(server: McpServer, sessionState: SessionState) {
     server.registerTool(
         "list_users_in_course",
         {
-            description: "List all users enrolled in a Canvas course, with their roles and enrollment counts per role.",
+            description: "List all users enrolled in a Canvas course, with their enrollment IDs and roles. Use display_users to show the results visually when you would otherwise write them as text. Each user includes enrollment_id + role pairs needed for unenrolling.",
             inputSchema: {
                 course_id: z.number().describe("The Canvas course ID"),
                 enrollment_types: z.array(EnrollmentTypeFilterEnum).optional().describe("Filter by enrollment type(s)"),
@@ -102,7 +102,7 @@ export function register(server: McpServer, sessionState: SessionState) {
 
     registerAppTool(server, "display_users", {
         title: "Display Users",
-        description: "Display a list of users in a visual UI. Takes an array of user objects as input. This usually receives the output of list_users_in_course if you want to display them.",
+        description: "Display users visually in a rich UI. When you would otherwise write the user list as text, use this instead — it displays an interactive UI to the user. Pass the user objects from list_users_in_course directly.",
         annotations: { readOnlyHint: true },
         inputSchema: { users: z.array(UserOutputSchema) },
         _meta: { ui: { resourceUri: listUsersUri } },
@@ -114,7 +114,7 @@ export function register(server: McpServer, sessionState: SessionState) {
         "refresh_known_users",
         {
             title: "Refresh known users",
-            description: "Indexes all Canvas users visible in this session. Use this tool when another tool requires it.",
+            description: "Indexes all Canvas users across all courses into a session cache. Must be called once before using get_users_info. Caches user IDs, names, emails, and all their enrollments (enrollment IDs, course IDs, roles, states).",
             inputSchema: {},
             annotations: { readOnlyHint: true },
         },
@@ -132,6 +132,8 @@ export function register(server: McpServer, sessionState: SessionState) {
                             const newEnrollments: KnownUserEnrollment[] = user.enrollments?.map((e) => ({
                                 enrollment_id: e.id,
                                 course_id: e.course_id,
+                                course_name: course.name,
+                                course_code: course.course_code,
                                 role: ROLE_LABELS[e.type] ?? e.type,
                                 state: e.enrollment_state,
                             })) ?? [];
@@ -163,7 +165,7 @@ export function register(server: McpServer, sessionState: SessionState) {
         "get_users_info",
         {
             title: "Get users info",
-            description: "Get info of users tied to the given emails, including all their enrollments (enrollment ID, course ID, role, state). Can also be used to check if users exist.",
+            description: "Look up users by email from the session cache. Returns user IDs, names, and all their enrollments (enrollment_id, course_id, course_name, course_code, role, state). Use this to get user IDs for enroll_users_in_courses, or enrollment IDs and course info for propose_unenroll_users_from_courses — no need to call list_courses separately. Requires refresh_known_users to have been called first.",
             inputSchema: { emails: z.array(z.string()) },
             annotations: { readOnlyHint: true }
         },

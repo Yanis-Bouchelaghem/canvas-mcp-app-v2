@@ -10,9 +10,7 @@ import path from "node:path";
 import { z } from "zod";
 import type { SessionState } from "../../server.js";
 
-const DIST_DIR = import.meta.filename.endsWith(".ts")
-    ? path.join(import.meta.dirname, "../../dist/src/ui/enrollments")
-    : import.meta.dirname;
+const DIST_DIR = path.join(import.meta.dirname, "../../dist/src/ui/enrollments");
 
 export function register(server: McpServer, sessionState: SessionState) {
     const enrollProgressUri = "ui://canvas-lms/enroll-progress";

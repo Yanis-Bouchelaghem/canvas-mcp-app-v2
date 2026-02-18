@@ -1,0 +1,9 @@
+services:
+  mcp:
+    build:
+      context: ./mcp
+    ports:
+      - "${PORT:-3001}:${PORT:-3001}"
+    env_file:
+      - .env
+    restart: unless-stopped

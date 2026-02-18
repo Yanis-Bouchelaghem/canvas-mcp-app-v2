@@ -141,4 +141,9 @@ dist
 # SvelteKit build / generate output
 .svelte-kit
 
+# tsc-emitted JS files (server compiles in-place, no outDir)
+mcp/**/*.js
+mcp/**/*.js.map
+mcp/**/*.d.ts
+
 # End of https://www.toptal.com/developers/gitignore/api/node

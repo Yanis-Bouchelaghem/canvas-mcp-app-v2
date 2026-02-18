@@ -88,6 +88,6 @@ setInterval(() => {
     if (evictedCount) console.log(`Evicted ${evictedCount} inactive session(s).`)
 }, 5 * 60 * 1000); // Check every 5 minutes
 
-app.listen(port, () => {
-    console.log(`MCP server listening on http://localhost:${port}/mcp`);
+app.listen(port, "0.0.0.0", () => {
+    console.log(`MCP server listening on http://0.0.0.0:${port}/mcp`);
 });

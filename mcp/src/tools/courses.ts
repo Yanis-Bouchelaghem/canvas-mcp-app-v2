@@ -7,9 +7,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 
-const DIST_DIR = import.meta.filename.endsWith(".ts")
-    ? path.join(import.meta.dirname, "../../dist/src/ui/courses")
-    : import.meta.dirname;
+const DIST_DIR = path.join(import.meta.dirname, "../../dist/src/ui/courses");
 
 export function register(server: McpServer) {
     const listCoursesUri = "ui://canvas-lms/list-courses";

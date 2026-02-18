@@ -10,9 +10,7 @@ import path from "node:path";
 import { z } from "zod";
 import type { SessionState, KnownUser, KnownUserEnrollment } from "../../server.js";
 
-const DIST_DIR = import.meta.filename.endsWith(".ts")
-    ? path.join(import.meta.dirname, "../../dist/src/ui/users")
-    : import.meta.dirname;
+const DIST_DIR = path.join(import.meta.dirname, "../../dist/src/ui/users");
 
 const ROLE_LABELS: Record<string, string> = {
     StudentEnrollment: "student",

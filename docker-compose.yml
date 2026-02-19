@@ -2,8 +2,7 @@ services:
   mcp:
     build:
       context: ./mcp
-    ports:
-      - "${PORT:-3001}:${PORT:-3001}"
+    network_mode: host
     env_file:
       - .env
     restart: unless-stopped

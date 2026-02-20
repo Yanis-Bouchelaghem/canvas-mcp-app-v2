@@ -274,6 +274,8 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   result,
   status,
 }) => {
+  console.log(`[tool:${toolName}] result:`, JSON.stringify(result, null, 2));
+
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
 

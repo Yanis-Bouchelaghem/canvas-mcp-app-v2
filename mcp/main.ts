@@ -17,6 +17,21 @@ const sessions: Record<string, Session> = {};
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+    const start = Date.now();
+    const mcpMethod: string | undefined = req.body?.method;
+    const toolName: string | undefined = req.body?.params?.name;
+    const methodLabel = mcpMethod
+        ? (toolName ? `${mcpMethod}(${toolName})` : mcpMethod)
+        : req.method === "GET" ? "sse-connect" : req.method === "DELETE" ? "session-close" : "—";
+    res.on("finish", () => {
+        const ms = Date.now() - start;
+        const sessionId = req.headers["mcp-session-id"] as string | undefined;
+        const session = sessionId ? `[${sessionId.slice(0, 8)}]` : "[new]";
+        console.log(`${session} ${methodLabel} → ${res.statusCode} (${ms}ms)`);
+    });
+    next();
+});
 
 app.post("/mcp", async (request, result) => {
     // Creates a new session, or forwards the request to the existing session.
